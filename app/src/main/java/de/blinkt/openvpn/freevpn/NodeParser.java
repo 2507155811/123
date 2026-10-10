@@ -7,7 +7,7 @@ import java.nio.charset.StandardCharsets;
 public final class NodeParser {
     private static final Set<String> EXCLUDED = new HashSet<>(Arrays.asList("CN", "HK", "MO"));
     private static final Set<String> ALLOWED = new HashSet<>(Arrays.asList(
-            "client","dev","dev-type","proto","remote","resolv-retry","nobind","persist-key",
+            "auth-user-pass","fast-io","client","dev","dev-type","proto","remote","resolv-retry","nobind","persist-key",
             "persist-tun","cipher","data-ciphers","data-ciphers-fallback","auth","verb","mute",
             "remote-cert-tls","verify-x509-name","tls-version-min","tls-version-max","tls-cipher",
             "tls-ciphersuites","key-direction","auth-nocache","explicit-exit-notify","tun-mtu",
@@ -80,6 +80,7 @@ public final class NodeParser {
             }
             String[] words=line.split("\\s+");String directive=words[0].toLowerCase(Locale.ROOT);
             if(!ALLOWED.contains(directive))return false;
+            if((directive.equals("auth-user-pass")||directive.equals("fast-io"))&&words.length!=1)return false;
             if(directive.equals("setenv") && (words.length<2 || !words[1].equals("CLIENT_CERT")))return false;
             if(directive.equals("dev") && (words.length!=2 || !words[1].equals("tun")))return false;
             if(directive.equals("client"))client=true;
