@@ -1,2 +1,2 @@
-cb13b48529a1e15375e0e445a3d7556523d2da25b9143e58aad3c9c005bf45ce  AeroVPN-debug.apk
-478a3a53f5953de2fe3bddb71a2d61840dd7899d539edfa539ce1292f24e80e9  AeroVPN-source.tar.gz
+088c1325666b9bf6b273423e143050ba517e5f9937fbe31980b7df46b4b9cd48  AeroVPN-debug.apk
+ef282a02aa5b601ff8be00d197fa8bebf615a203be5bf5962db16f444bac4558  AeroVPN-source.tar.gz

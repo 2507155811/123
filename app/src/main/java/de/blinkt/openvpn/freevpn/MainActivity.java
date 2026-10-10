@@ -91,8 +91,10 @@ public final class MainActivity extends Activity implements VpnStatus.StateListe
         space(hero,12);connect=button("选择节点后连接",true);connect.setEnabled(false);connect.setAlpha(.5f);hero.addView(connect,new LinearLayout.LayoutParams(-1,dp(48)));connect.setOnClickListener(v->{if(active||initiating)disconnect();else beginConnect();});
         space(hero,10);traffic=label("内置 OpenVPN · 无需额外客户端",11,MUTED);traffic.setGravity(Gravity.CENTER);hero.addView(traffic);root.addView(hero);space(root,16);
         LinearLayout searchRow=row();search=new EditText(this);search.setSingleLine(true);search.setTextSize(14);search.setTextColor(INK);search.setHintTextColor(MUTED);search.setHint("搜索国家 / IP / 节点名称");search.setPadding(dp(14),0,dp(14),0);search.setBackground(background(Color.WHITE,14));search.setInputType(android.text.InputType.TYPE_CLASS_TEXT);search.setContentDescription("搜索境外 VPN 节点");searchRow.addView(search,new LinearLayout.LayoutParams(0,dp(48),1));
-        refresh=button("刷新",false);LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(dp(68),dp(48));rp.leftMargin=dp(10);searchRow.addView(refresh,rp);refresh.setOnClickListener(v->loadNodes());root.addView(searchRow);
+        refresh=button("刷新",false);refresh.setSingleLine(true);refresh.setPadding(dp(8),0,dp(8),0);LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(dp(84),dp(48));rp.leftMargin=dp(10);searchRow.addView(refresh,rp);refresh.setOnClickListener(v->loadNodes());root.addView(searchRow);
         search.addTextChangedListener(new TextWatcher(){public void beforeTextChanged(CharSequence s,int a,int c,int f){}public void onTextChanged(CharSequence s,int a,int b,int c){query=s.toString();filter();}public void afterTextChanged(Editable e){}});
+        space(root,8);Button importButton=button("导入节点列表（CSV）",false);root.addView(importButton,new LinearLayout.LayoutParams(-1,dp(40)));
+        importButton.setOnClickListener(v->{if(refreshing){toast("请等待当前更新完成");return;}Intent file=new Intent(Intent.ACTION_OPEN_DOCUMENT);file.addCategory(Intent.CATEGORY_OPENABLE);file.setType("*/*");startActivityForResult(file,8);});
         space(root,10);LinearLayout filters=row();countries=new Spinner(this);countries.setContentDescription("按地区筛选");sorts=new Spinner(this);sorts.setContentDescription("节点排序");filters.addView(countries,new LinearLayout.LayoutParams(0,dp(44),1));filters.addView(sorts,new LinearLayout.LayoutParams(0,dp(44),1));root.addView(filters);
         setSpinner(sorts,Arrays.asList("推荐排序","低延迟优先","高速度优先"));sorts.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener(){public void onNothingSelected(AdapterView<?> p){}public void onItemSelected(AdapterView<?> p,View v,int pos,long id){sort=pos;filter();}});
         setSpinner(countries,Collections.singletonList("全部地区"));countries.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener(){public void onNothingSelected(AdapterView<?> p){}public void onItemSelected(AdapterView<?> p,View v,int pos,long id){country=p.getItemAtPosition(pos).toString();filter();}});
@@ -104,24 +106,24 @@ public final class MainActivity extends Activity implements VpnStatus.StateListe
     }
     private void setSpinner(Spinner s,List<String> values){ArrayAdapter<String> a=new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,values);a.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);s.setAdapter(a);}
     private void showAbout(){new AlertDialog.Builder(this).setTitle("Aero VPN · 自由探索")
-            .setMessage("免费节点：VPN Gate（日本筑波大学志愿者项目）\n来源：www.vpngate.net\n\n仅显示地区代码不属于 CN / HK / MO 的节点；国家位置未经独立验证。速度与延迟为节点源报告值，不代表本机实测。\n\n节点可能随时离线或记录访问，请勿传输敏感资料。应用无账号、广告或分析 SDK，收藏与一小时缓存保存在本机。\n\n内置 OpenVPN for Android 0.7.62，遵循 GPLv2 及其附加条款。源码和许可证随项目提供。")
+            .setMessage("免费节点：VPN Gate（日本筑波大学志愿者项目）\n来源：www.vpngate.net\n\n仅显示地区代码不属于 CN / HK / MO 的节点；国家位置未经独立验证。速度与延迟为节点源报告值，不代表本机实测。\n\n节点可能随时离线或记录访问，请勿传输敏感资料。应用无账号、广告或分析 SDK，收藏与 24 小时缓存保存在本机。\n\n内置 OpenVPN for Android 0.7.62，遵循 GPLv2 及其附加条款。源码和许可证随项目提供。")
             .setPositiveButton("关闭",null).show();}
     private void loadNodes(){
         if(refreshing)return;loadError=null;refreshing=true;refresh.setEnabled(false);refresh.setText("…");
         source.setText("正在通过 HTTPS 更新 VPN Gate…");
         io.execute(()->{
             NodeRepository.Result result;String problem=null;
-            try{result=repository.load(true);}catch(IOException e){problem=e.getMessage();try{result=repository.load(false);}catch(IOException cacheError){result=null;}}
+            try{result=repository.load(true);}catch(IOException e){problem=NodeRepository.explain(e);try{result=repository.load(false);}catch(IOException cacheError){result=null;}}
             NodeRepository.Result r=result;String error=problem;
             handler.post(()->{
                 if(isDestroyed())return;refreshing=false;refresh.setEnabled(true);refresh.setText("刷新");
-                if(r==null){loadError=error==null?"节点源暂时不可用":error;nodes.clear();selected=null;fetchedAt=0;source.setText("更新失败 · 检查网络后重试");filter();empty.setText("暂时无法获取节点\n"+(error==null?"节点源暂时不可用":error)+"\n\n点击「刷新」重试");updateConnection();return;}
-                nodes.clear();nodes.addAll(r.nodes);fetchedAt=r.fetchedAt;expired=false;
+                if(r==null){loadError=error==null?"节点源暂时不可用":error;source.setText("更新失败 · 检查网络后重试");filter();empty.setText("暂时无法获取节点\n"+(error==null?"节点源暂时不可用":error)+"\n\n切换 Wi-Fi 后刷新，或导入 VPN Gate CSV 列表");updateConnection();return;}
+                nodes.clear();nodes.addAll(r.nodes);fetchedAt=r.fetchedAt;expired=System.currentTimeMillis()-fetchedAt>3_600_000;
                 String selectedIp=selected!=null?selected.ip:restoredIp;selected=null;
                 for(Node n:nodes)if(n.ip.equals(selectedIp)){selected=n;break;}
                 TreeSet<String> regions=new TreeSet<>();for(Node n:nodes)regions.add(n.displayCountry());List<String> options=new ArrayList<>();options.add("全部地区");options.addAll(regions);String oldCountry=country;setSpinner(countries,options);int oldIndex=options.indexOf(oldCountry);countries.setSelection(Math.max(0,oldIndex));
                 source.setText((r.cached?"离线缓存":"实时列表")+" · "+new SimpleDateFormat("HH:mm",Locale.getDefault()).format(new Date(r.fetchedAt))+" · 排除 CN/HK/MO");
-                if(r.cached)toast("更新失败，显示一小时内的缓存；节点可能已经离线");filter();updateConnection();
+                if(r.cached)toast("更新失败，显示 24 小时内的缓存；超过一小时的节点仅供浏览，请更新后连接");filter();updateConnection();
             });
         });
     }
@@ -130,7 +132,7 @@ public final class MainActivity extends Activity implements VpnStatus.StateListe
         Comparator<Node> comparator=sort==1?Comparator.comparingInt(n->n.ping):sort==2?Comparator.comparingLong((Node n)->n.speed).reversed():Comparator.comparingLong((Node n)->n.score).reversed();
         visible.sort(comparator);if(adapter==null)return;adapter.notifyDataSetChanged();count.setText(visible.size()+" 个");allTab.setTextColor(favoriteOnly?MUTED:BLUE);favoriteTab.setTextColor(favoriteOnly?BLUE:MUTED);
         empty.setVisibility(visible.isEmpty()?View.VISIBLE:View.GONE);
-        if(visible.isEmpty())empty.setText(!refreshing && nodes.isEmpty() && loadError!=null?"暂时无法获取节点\n"+loadError+"\n\n点击「刷新」重试":refreshing?"正在搜索可用节点…":favoriteOnly?"还没有收藏的匹配节点\n点击节点右侧 ☆ 收藏":"没有匹配的节点\n尝试其他关键词或刷新列表");
+        if(visible.isEmpty())empty.setText(!refreshing && nodes.isEmpty() && loadError!=null?"暂时无法获取节点\n"+loadError+"\n\n切换 Wi-Fi 后刷新，或导入 VPN Gate CSV 列表":refreshing?"正在搜索可用节点…":favoriteOnly?"还没有收藏的匹配节点\n点击节点右侧 ☆ 收藏":"没有匹配的节点\n尝试其他关键词或刷新列表");
     }
     private void chooseNode(Node node){
         if(active||initiating){toast("请先断开当前连接，再切换节点");return;}
@@ -175,6 +177,13 @@ public final class MainActivity extends Activity implements VpnStatus.StateListe
         if(request!=null)startActivityForResult(request,7);else startTunnel();
     }
     @Override public void onActivityResult(int request,int result,Intent data){super.onActivityResult(request,result,data);
+        if(request==8 && result==RESULT_OK && data!=null && data.getData()!=null){
+            android.net.Uri uri=data.getData();refreshing=true;refresh.setEnabled(false);
+            io.execute(()->{try{
+                NodeRepository.Result imported=repository.importList(getContentResolver().openInputStream(uri));
+                handler.post(()->{if(isDestroyed())return;nodes.clear();nodes.addAll(imported.nodes);selected=null;fetchedAt=imported.fetchedAt;expired=false;loadError=null;refreshing=false;refresh.setEnabled(true);country="全部地区";setSpinner(countries,Collections.singletonList(country));search.setText("");favoriteOnly=false;source.setText("已导入 · "+nodes.size()+" 个境外节点 · 节点可能离线");filter();updateConnection();});
+            }catch(IOException | SecurityException e){handler.post(()->{if(isDestroyed())return;refreshing=false;refresh.setEnabled(true);toast("导入失败："+e.getMessage());});}});
+        }
         if(request==7){if(result==RESULT_OK)startTunnel();else{initiating=false;pendingProfile=null;updateConnection();toast("VPN 授权已取消");}}
     }
     private void startTunnel(){

@@ -64,3 +64,10 @@ python3 scripts/cloud_gradle.py :app:assembleDebug :app:testDebugUnitTest :app:l
 本项目遵循 GPLv2 及内置 OpenVPN for Android 的链接例外条款，见 LICENSE 和
 THIRD_PARTY_NOTICES.md。内核固定版本与所有兼容性覆盖集中在 `scripts/prepare_engine.py`。
 发行 APK 时须同时按许可证要求提供完整对应源码；仅分发安装包不够。
+
+### 1.1.0 更新
+
+- 节点连接超时、DNS 和 TLS 错误使用中文提示；刷新按钮保持单行。
+- 支持通过系统文件选择器导入 VPN Gate 原始 CSV 列表（最大 12 MB），继续执行境外地区及配置安全校验。可在能够访问官方网站的网络下载 `https://www.vpngate.net/api/iphone/` 的原始内容，保存为 CSV 后传到手机导入。导入不是第二个在线节点源，不能解决节点服务器自身不可达的问题。
+- 缓存可浏览 24 小时，超过一小时须更新后连接；更新失败保留现有列表。
+- 此版没有内置过期节点或使用未经验证的镜像。真实 VPN 隧道连通仍需在手机网络测试。
