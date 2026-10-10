@@ -16,8 +16,8 @@ import javax.net.ssl.HttpsURLConnection;
 
 /** Runs manually requested tunnel searches and speed tests; never schedules node selection. */
 public final class NodeOptimizerService extends Service implements VpnStatus.StateListener {
-    public static final String SCAN="scan",SELECT="select",STOP="stop",SPEED="speed";
-    private static final long SCAN_BUDGET=8*60*1000L;
+    public static final String SCAN="scan",CANCEL="cancel",SELECT="select",STOP="stop",SPEED="speed";
+    private static final long SCAN_BUDGET=90_000L;
     public final class LocalBinder extends Binder {public NodeOptimizerService service(){return NodeOptimizerService.this;}}
     private final LocalBinder binder=new LocalBinder();
     private final Handler main=new Handler(Looper.getMainLooper());
@@ -31,7 +31,7 @@ public final class NodeOptimizerService extends Service implements VpnStatus.Sta
     private volatile String engineUuid="";
     private volatile Node current;
     private volatile boolean busy,destroyed,stopping,intentionalStop;
-    private volatile String message="尚未检测：点击检测可用节点";
+    private volatile String message="尚未搜索：点击搜索可用节点";
     private volatile Future<?> work;
     private ConnectivityManager connectivity;
     private PowerManager.WakeLock wakeLock;
@@ -42,11 +42,12 @@ public final class NodeOptimizerService extends Service implements VpnStatus.Sta
         @Override public void onLost(Network network){invalidateNetwork();}
     };
     private void invalidateNetwork(){networkEpoch.incrementAndGet();verified.clear();main.post(()->{if(destroyed)return;if(!busy){message="网络已变化，需要重新验证节点";}publish();});}
-    private int cursor;
+    private volatile boolean searching;
+    public boolean isSearching(){return searching;}
     private final Map<String,Integer> failures=new ConcurrentHashMap<>();
     private final List<String> recentFailures=new CopyOnWriteArrayList<>();
     public String diagnostics(){
-        StringBuilder text=new StringBuilder("只记录本轮检测结果，不包含账号或配置密钥。\n可用节点："+available().size()+"\n");
+        StringBuilder text=new StringBuilder("只记录本轮搜索或连接结果，不包含账号或配置密钥。\n可达节点（端口探测不证明联网）："+available().size()+"\n");
         for(String stage:Arrays.asList("需要来源密码","端口不可达","隧道未建立","隧道内联网失败"))text.append(stage).append("：").append(failures.getOrDefault(stage,0)).append('\n');
         for(String reason:recentFailures)text.append('\n').append(reason);
         return text.toString();
@@ -100,6 +101,8 @@ public final class NodeOptimizerService extends Service implements VpnStatus.Sta
                 String ip=intent.getStringExtra("ip");NodeHealth health=health(ip==null?"":ip);
                 if(health==null){message="节点验证已过期，请重新检测";publish();}else submit(()->{int token=generation.get();message="正在重新验证所选节点…";publish();try{check(token);stopTunnel();NodeHealth result=trial(health.node,token);verified.put(result.node.ip,result);message="已验证并连接："+result.node.displayCountry();}catch(Exception e){verified.remove(health.node.ip);safeStop();if(token==generation.get())message="所选节点当前不可用，已隐藏";}finally{if(token==generation.get()&&!stopping)busy=false;publish();}});
                 break;
+            case CANCEL:
+                if(searching){generation.incrementAndGet();if(work!=null)work.cancel(true);searching=false;busy=false;message="搜索已停止，当前 VPN 连接保留";publish();}break;
             case STOP:
                 stopping=true;busy=true;message="正在停止检测并关闭系统 VPN…";generation.incrementAndGet();if(work!=null)work.cancel(true);publish();
                 worker.execute(()->{try{stopTunnel();busy=false;message="已确认停止并断开系统 VPN";publish();main.post(()->{started=false;stopForeground(STOP_FOREGROUND_REMOVE);stopSelf();});}
@@ -115,48 +118,42 @@ public final class NodeOptimizerService extends Service implements VpnStatus.Sta
     }
     private void publish(){main.post(()->{if(destroyed)return;for(Runnable r:observers)r.run();if(started&&!busy&&current==null&&!stopping){started=false;stopForeground(STOP_FOREGROUND_REMOVE);stopSelf();}if(started)((NotificationManager)getSystemService(NOTIFICATION_SERVICE)).notify(3401,notification());});}
     private void submit(Runnable task){generation.incrementAndGet();if(work!=null)work.cancel(true);busy=true;work=worker.submit(task);publish();}
-    private void submitScan(){submit(()->scan(generation.get()));}
+    private void submitScan(){searching=true;submit(()->scan(generation.get()));}
     private void check(int token)throws InterruptedException {if(destroyed||Thread.currentThread().isInterrupted()||token!=generation.get())throw new InterruptedException();}
     private void scan(int token){
-        failures.clear();recentFailures.clear();Node original=current;boolean originalVerified=false;
-        wakeLock.acquire(SCAN_BUDGET+60_000);
-        long deadline=SystemClock.elapsedRealtime()+SCAN_BUDGET;
-        try {
-            message="更新目录并检测真实 VPN 联网能力…";publish();
+        searching=true;failures.clear();recentFailures.clear();
+        ExecutorService probes=Executors.newFixedThreadPool(16);List<Future<NodeHealth>> pending=new ArrayList<>();
+        int epoch=networkEpoch.get();wakeLock.acquire(SCAN_BUDGET+10_000);
+        try{
+            message="正在获取免费节点目录…搜索不会建立或切换 VPN";publish();
             NodeRepository repository=new NodeRepository(getCacheDir());NodeRepository.Result directory;
             try{directory=repository.load(true);}catch(IOException e){try{directory=repository.load(false);}catch(IOException ignored){directory=repository.seed(getAssets().open("vpngate.csv"));}}
-            check(token);
-            if(original!=null && level==ConnectionStatus.LEVEL_CONNECTED){
-                try{NodeHealth existing=measure(original,token);verified.put(original.ip,existing);originalVerified=true;}catch(IOException e){verified.remove(original.ip);}
+            check(token);Network network=physical();if(network==null)throw new IOException("没有可用的手机网络");
+            epoch=networkEpoch.get();final int searchEpoch=epoch;int udp=0;
+            CompletionService<NodeHealth> results=new ExecutorCompletionService<>(probes);
+            for(Node node:directory.nodes){
+                int port=TcpEndpoint.port(node.config);if(port<0){udp++;continue;}
+                pending.add(results.submit(()->{
+                    check(token);long start=SystemClock.elapsedRealtime();
+                    try(Socket socket=network.getSocketFactory().createSocket()){
+                        socket.connect(new InetSocketAddress(node.ip,port),2500);check(token);
+                        if(networkEpoch.get()!=searchEpoch)throw new IOException("网络已变化");
+                        return NodeHealth.reachable(node,SystemClock.elapsedRealtime(),Math.max(1,SystemClock.elapsedRealtime()-start));
+                    }catch(IOException e){NodeHealth old=health(node.ip);if(old!=null&&!old.tunnelVerified)verified.remove(node.ip,old);failed(node,"端口不可达","当前网络无法连接此节点端口");return null;}
+                }));
             }
-            List<Node> candidates=new ArrayList<>(directory.nodes);
-            // Rotate the directory so difficult-to-connect nodes do not monopolize every round.
-            candidates.sort(Comparator.comparingLong((Node n)->n.score).reversed());
-            List<Node> gateNodes=new ArrayList<>(),bookNodes=new ArrayList<>();for(Node n:candidates)(n.provider().equals("VPNBook")?bookNodes:gateNodes).add(n);
-            candidates.clear();for(int i=0;i<Math.max(gateNodes.size(),bookNodes.size());i++){if(i<bookNodes.size())candidates.add(bookNodes.get(i));if(i<gateNodes.size())candidates.add(gateNodes.get(i));}
-            if(!candidates.isEmpty())Collections.rotate(candidates,-(cursor%candidates.size()));
-            int tried=0,inspected=0;
-            for(Node node:candidates){
-                check(token);if(SystemClock.elapsedRealtime()>deadline-45_000||tried>=12)break;
-                inspected++;if(node.provider().equals("VPNBook")&&ProviderPassword.read(this).isEmpty()){failed(node,"需要来源密码","在节点来源中设置官网当前共享密码后搜索");continue;}if(original!=null && node.ip.equals(original.ip) && originalVerified)continue;
-                message="检测端口 "+inspected+"/"+candidates.size()+" · 已验证 "+available().size()+" 个";publish();
-                if(!reachable(node,token)){verified.remove(node.ip);failed(node,"端口不可达","当前网络无法连接此节点端口");continue;}
-                tried++;stopTunnel();check(token);
-                message="验证隧道 "+tried+"/12 · "+node.displayCountry()+" · "+node.ip;publish();
-                try{NodeHealth h=trial(node,token);verified.put(node.ip,h);}
-                catch(IOException e){verified.remove(node.ip);String reason=e.getMessage()==null?"连接失败":e.getMessage();failed(node,reason.contains("HTTPS")||reason.contains("路由")?"隧道内联网失败":"隧道未建立",reason);stopTunnel();}
-                publish();
+            long deadline=SystemClock.elapsedRealtime()+45_000;int finished=0;
+            while(finished<pending.size()){
+                check(token);if(networkEpoch.get()!=epoch)throw new IOException("网络变化，请重新搜索");
+                long left=deadline-SystemClock.elapsedRealtime();if(left<=0)break;
+                Future<NodeHealth> result=results.poll(Math.min(left,500),TimeUnit.MILLISECONDS);if(result==null)continue;
+                finished++;try{NodeHealth h=result.get();check(token);if(networkEpoch.get()!=epoch)throw new IOException("网络变化，请重新搜索");if(h!=null){NodeHealth old=health(h.node.ip);if(old==null||!old.tunnelVerified)verified.put(h.node.ip,h);}}catch(ExecutionException ignored){}
+                message="并发搜索 "+finished+"/"+pending.size()+" · 已发现 "+available().size()+" 个可达节点";publish();
             }
-            cursor+=inspected;check(token);
-            Node target=original;
-            if(target!=null){
-                try{if(current==null||!current.ip.equals(target.ip)||level!=ConnectionStatus.LEVEL_CONNECTED){stopTunnel();NodeHealth h=trial(target,token);verified.put(target.ip,h);}else{NodeHealth h=measure(target,token);verified.put(target.ip,h);}}
-                catch(IOException e){verified.remove(target.ip);stopTunnel();target=null;}
-            }else stopTunnel();
-            message=available().isEmpty()?"本轮未搜索到通过联网验证的节点，请查看诊断或切换网络":"搜索完成 · "+available().size()+" 个近期验证可用节点";
-        }catch(InterruptedException e){Thread.currentThread().interrupt();safeStop();}
-        catch(Exception e){safeStop();message="检测未完成："+(e.getMessage()==null?"请检查网络或 VPN 授权":e.getMessage());}
-        finally {if(wakeLock.isHeld())wakeLock.release();if(token==generation.get()&&!stopping)busy=false;publish();}
+            message="搜索完成 · "+available().size()+" 个可达节点；连接后验证联网和测速"+(udp>0?" · "+udp+" 个 UDP 配置无法用 TCP 探测，未列入结果":"");
+        }catch(InterruptedException e){Thread.currentThread().interrupt();}
+        catch(Exception e){message="搜索未完成："+(e.getMessage()==null?"请检查网络":e.getMessage());}
+        finally{for(Future<NodeHealth> f:pending)f.cancel(true);probes.shutdownNow();if(wakeLock.isHeld())wakeLock.release();if(token==generation.get()){searching=false;if(!stopping)busy=false;publish();}}
     }
     private Network physical(){
         Network active=connectivity.getActiveNetwork();NetworkCapabilities caps=active==null?null:connectivity.getNetworkCapabilities(active);
@@ -166,13 +163,6 @@ public final class NodeOptimizerService extends Service implements VpnStatus.Sta
     }
     private Network tunnel()throws IOException {
         for(Network n:connectivity.getAllNetworks()){NetworkCapabilities c=connectivity.getNetworkCapabilities(n);if(c!=null&&c.hasTransport(NetworkCapabilities.TRANSPORT_VPN))return n;}throw new IOException("VPN 路由尚未建立");
-    }
-    private boolean reachable(Node node,int token)throws InterruptedException {
-        check(token);String proto="udp",remoteProto="";int port=0;
-        for(String line:node.config.split("\\r?\\n")){String[] words=line.trim().split("\\s+");if(words.length>=2&&words[0].equals("proto"))proto=words[1];if(words.length>=3&&words[0].equals("remote")){try{port=Integer.parseInt(words[2]);}catch(NumberFormatException e){return false;}if(words.length>=4)remoteProto=words[3];break;}}
-        if(!(remoteProto.isEmpty()?proto:remoteProto).startsWith("tcp"))return true; // UDP requires the actual handshake; a UDP send proves nothing.
-        Network network=physical();if(network==null)return false;
-        try(Socket socket=network.getSocketFactory().createSocket()){long start=SystemClock.elapsedRealtime();socket.connect(new InetSocketAddress(node.ip,port),1500);return SystemClock.elapsedRealtime()-start<1500;}catch(IOException e){return false;}
     }
     private NodeHealth trial(Node node,int token)throws IOException,InterruptedException {
         check(token);if(VpnService.prepare(this)!=null)throw new IOException("需要重新授权 VPN，请回到应用点击检测");

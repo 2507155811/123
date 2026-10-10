@@ -1,13 +1,16 @@
 package de.blinkt.openvpn.freevpn;
 
-/** Evidence from this phone's VPN-bound HTTPS requests, never source-reported statistics. */
+/** Records TCP reachability separately from this phone's VPN-bound HTTPS validation. */
 public final class NodeHealth {
     public static final long VALID_FOR=10*60*1000L;
     public final Node node;
+    public final boolean tunnelVerified;
     public final long checkedAt,latencyMs,bytesPerSecond,sampleBytes;
     public final String speedSource;
     public NodeHealth(Node node,long checkedAt,long latencyMs,long bytesPerSecond){this(node,checkedAt,latencyMs,bytesPerSecond,0,"");}
-    public NodeHealth(Node node,long checkedAt,long latencyMs,long bytesPerSecond,long sampleBytes,String speedSource){this.node=node;this.checkedAt=checkedAt;this.latencyMs=latencyMs;this.bytesPerSecond=bytesPerSecond;this.sampleBytes=sampleBytes;this.speedSource=speedSource;}
+    public NodeHealth(Node node,long checkedAt,long latencyMs,long bytesPerSecond,long sampleBytes,String speedSource){this(node,checkedAt,latencyMs,bytesPerSecond,sampleBytes,speedSource,true);}
+    private NodeHealth(Node node,long checkedAt,long latencyMs,long bytesPerSecond,long sampleBytes,String speedSource,boolean tunnelVerified){this.tunnelVerified=tunnelVerified;this.node=node;this.checkedAt=checkedAt;this.latencyMs=latencyMs;this.bytesPerSecond=bytesPerSecond;this.sampleBytes=sampleBytes;this.speedSource=speedSource;}
+    public static NodeHealth reachable(Node node,long checkedAt,long latencyMs){return new NodeHealth(node,checkedAt,latencyMs,0,0,"",false);}
     public boolean fresh(long now){return checkedAt<=now && now-checkedAt<VALID_FOR;}
     public double quality(){return bytesPerSecond>0?bytesPerSecond/(1.0+latencyMs/500.0):1000.0/(1+latencyMs);}
     public boolean substantiallyBetterThan(NodeHealth current){return current==null || quality()>current.quality()*1.2;}
