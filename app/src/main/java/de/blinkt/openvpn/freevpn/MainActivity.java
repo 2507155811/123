@@ -104,7 +104,7 @@ public final class MainActivity extends Activity implements VpnStatus.StateListe
         TextView info=label("ⓘ",25,MUTED);info.setGravity(Gravity.CENTER);info.setContentDescription("关于与隐私说明");header.addView(info,new LinearLayout.LayoutParams(dp(48),dp(48)));info.setOnClickListener(v->showAbout());root.addView(header);space(root,20);
         LinearLayout hero=column();hero.setPadding(dp(18),dp(18),dp(18),dp(16));hero.setBackground(background(Color.WHITE,22));
         LinearLayout top=row();LinearLayout text=column();status=label("尚未连接",23,INK);bold(status);text.addView(status);selectedLabel=label("选择一个境外节点开始",12,MUTED);text.addView(selectedLabel);top.addView(text,new LinearLayout.LayoutParams(0,-2,1));radar=new Radar();top.addView(radar,new LinearLayout.LayoutParams(dp(76),dp(76)));hero.addView(top);
-        space(hero,12);connect=button("选择节点后连接",true);connect.setEnabled(false);connect.setAlpha(.5f);hero.addView(connect,new LinearLayout.LayoutParams(-1,dp(48)));connect.setOnClickListener(v->{if(active||initiating||(optimizer!=null&&optimizer.isBusy()))disconnect();else beginConnect();});
+        space(hero,12);connect=button("选择节点后连接",true);connect.setEnabled(false);connect.setAlpha(.5f);hero.addView(connect,new LinearLayout.LayoutParams(-1,dp(48)));connect.setOnClickListener(v->{if(optimizer!=null&&optimizer.isStopping())return;if(active||initiating||(optimizer!=null&&optimizer.isBusy()))disconnect();else beginConnect();});
         space(hero,10);traffic=label("内置 OpenVPN · 无需额外客户端",11,MUTED);traffic.setGravity(Gravity.CENTER);hero.addView(traffic);root.addView(hero);space(root,16);
         LinearLayout searchRow=row();search=new EditText(this);search.setSingleLine(true);search.setTextSize(14);search.setTextColor(INK);search.setHintTextColor(MUTED);search.setHint("搜索国家 / IP / 节点名称");search.setPadding(dp(14),0,dp(14),0);search.setBackground(background(Color.WHITE,14));search.setInputType(android.text.InputType.TYPE_CLASS_TEXT);search.setContentDescription("搜索境外 VPN 节点");searchRow.addView(search,new LinearLayout.LayoutParams(0,dp(48),1));
         refresh=button("刷新",false);refresh.setSingleLine(true);refresh.setPadding(dp(8),0,dp(8),0);LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(dp(84),dp(48));rp.leftMargin=dp(10);searchRow.addView(refresh,rp);refresh.setOnClickListener(v->loadNodes());root.addView(searchRow);
@@ -178,8 +178,9 @@ public final class MainActivity extends Activity implements VpnStatus.StateListe
     private void updateConnection(){
         if(status==null)return;radar.on=connected;radar.invalidate();
         selectedLabel.setText(connected?prefs.getString("connected_label","VPN 隧道已建立"):selected==null?"选择一个境外节点开始":selected.displayCountry()+" · "+selected.ip);
-        connect.setText(optimizer!=null&&optimizer.isSearching()?"停止搜索":active||initiating||(optimizer!=null&&optimizer.isBusy())?connected?"断开连接":"停止搜索 / 取消连接":selected==null?"搜索后选择节点":"连接并验证联网");
-        boolean enabled=active||initiating||(optimizer!=null&&optimizer.isBusy())||(selected!=null&&optimizer!=null&&optimizer.health(selected.ip)!=null);connect.setEnabled(enabled);connect.setAlpha(enabled?1f:.5f);
+        connect.setText(optimizer!=null&&optimizer.isStopping()?"正在断开…":optimizer!=null&&optimizer.isSearching()?"停止搜索":active||initiating||(optimizer!=null&&optimizer.isBusy())?connected?"断开连接":"停止搜索 / 取消连接":selected==null?"搜索后选择节点":"连接并验证联网");
+        boolean enabled=(optimizer==null||!optimizer.isStopping())&&(active||initiating||(optimizer!=null&&optimizer.isBusy())||(selected!=null&&optimizer!=null&&optimizer.health(selected.ip)!=null));connect.setEnabled(enabled);connect.setAlpha(enabled?1f:.5f);
+        if(optimizer!=null&&optimizer.isStopping())status.setText("正在断开…");
         if(!active&&!initiating){status.setText("尚未连接");traffic.setText("内置 OpenVPN · 无需额外客户端");}
     }
     private void beginConnect(){
@@ -200,7 +201,7 @@ public final class MainActivity extends Activity implements VpnStatus.StateListe
         Intent intent=new Intent(this,NodeOptimizerService.class).setAction(action).putExtra("enabled",enabled);
         if(NodeOptimizerService.SELECT.equals(action))intent.putExtra("ip",pendingOptimizerIp);
         if(NodeOptimizerService.STOP.equals(action)||NodeOptimizerService.SCAN.equals(action)||NodeOptimizerService.SELECT.equals(action)){initiating=true;updateConnection();}
-        try{startForegroundService(intent);}catch(Exception e){toast("无法启动搜索，请重新打开应用");}
+        try{startForegroundService(intent);}catch(Exception e){initiating=false;updateConnection();toast("无法启动服务，请重新打开应用");}
         pendingOptimizerAction=null;pendingOptimizerIp=null;
     }
     @Override public void onRequestPermissionsResult(int request,String[] permissions,int[] results){super.onRequestPermissionsResult(request,permissions,results);if(request==9&&pendingOptimizerAction!=null)authorizeOptimizer();}

@@ -8,6 +8,10 @@ public final class TunnelStopper {
         boolean inactive();
         void pause() throws InterruptedException;
     }
+    public static void await(Transport transport,boolean launchOwned)throws IOException,InterruptedException {
+        if(!launchOwned&&transport.inactive())return;
+        await(transport);
+    }
     public static void await(Transport transport)throws IOException,InterruptedException {
         long end=transport.elapsed()+10_000,quietSince=-1;
         while(transport.elapsed()<end){

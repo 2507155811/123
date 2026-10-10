@@ -28,4 +28,12 @@ public class TunnelStopperTest {
         TunnelStopper.Transport stuck=new TunnelStopper.Transport(){long now;public long elapsed(){return now;}public void requestStop(){}public boolean inactive(){return false;}public void pause(){now+=200;}};
         try{TunnelStopper.await(stuck);fail("unconfirmed disconnect accepted");}catch(IOException expected){assertTrue(expected.getMessage().contains("确认"));}
     }
+    @Test public void firstConnectionSkipsStopWaitWhenNoLaunchIsOwned()throws Exception {
+        TunnelStopper.Transport idle=new TunnelStopper.Transport(){public long elapsed(){return 0;}public void requestStop(){fail("idle engine should not be stopped");}public boolean inactive(){return true;}public void pause(){fail("idle engine should not wait");}};
+        TunnelStopper.await(idle,false);
+    }
+    @Test public void pendingLaunchStillNeedsStableInactivePeriod()throws Exception {
+        class Pending implements TunnelStopper.Transport {long now;int stops;public long elapsed(){return now;}public void requestStop(){stops++;}public boolean inactive(){return true;}public void pause(){now+=200;}}
+        Pending pending=new Pending();TunnelStopper.await(pending,true);assertTrue(pending.now>=1500);assertTrue(pending.stops>1);
+    }
 }

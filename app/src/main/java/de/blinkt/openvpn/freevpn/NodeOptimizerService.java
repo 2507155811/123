@@ -44,6 +44,8 @@ public final class NodeOptimizerService extends Service implements VpnStatus.Sta
     private void invalidateNetwork(){networkEpoch.incrementAndGet();verified.clear();main.post(()->{if(destroyed)return;if(!busy){message="网络已变化，需要重新验证节点";}publish();});}
     private volatile boolean searching;
     public boolean isSearching(){return searching;}
+    public boolean isStopping(){return stopping;}
+    public boolean hasTunnel(){return current!=null&&level!=ConnectionStatus.LEVEL_NOTCONNECTED&&level!=ConnectionStatus.LEVEL_AUTH_FAILED&&level!=ConnectionStatus.UNKNOWN_LEVEL;}
     private final Map<String,Integer> failures=new ConcurrentHashMap<>();
     private final List<String> recentFailures=new CopyOnWriteArrayList<>();
     public String diagnostics(){
@@ -104,8 +106,8 @@ public final class NodeOptimizerService extends Service implements VpnStatus.Sta
             case CANCEL:
                 if(searching){generation.incrementAndGet();if(work!=null)work.cancel(true);searching=false;busy=false;message="搜索已停止，当前 VPN 连接保留";publish();}break;
             case STOP:
-                stopping=true;busy=true;message="正在停止检测并关闭系统 VPN…";generation.incrementAndGet();if(work!=null)work.cancel(true);publish();
-                worker.execute(()->{try{stopTunnel();busy=false;message="已确认停止并断开系统 VPN";publish();main.post(()->{started=false;stopForeground(STOP_FOREGROUND_REMOVE);stopSelf();});}
+                stopping=true;searching=false;busy=true;message="正在断开系统 VPN…";int stopToken=generation.incrementAndGet();if(work!=null)work.cancel(true);publish();
+                worker.execute(()->{try{stopTunnel();main.post(()->{if(stopToken!=generation.get()||destroyed)return;stopping=false;busy=false;message="已断开，可重新连接";started=false;stopForeground(STOP_FOREGROUND_REMOVE);stopSelfResult(id);publish();});}
                 catch(Exception e){busy=false;stopping=false;message="尚未确认断开，请重试或在手机 VPN 设置中断开";publish();}});break;
             default:break;
         }
@@ -122,12 +124,12 @@ public final class NodeOptimizerService extends Service implements VpnStatus.Sta
     private void check(int token)throws InterruptedException {if(destroyed||Thread.currentThread().isInterrupted()||token!=generation.get())throw new InterruptedException();}
     private void scan(int token){
         searching=true;failures.clear();recentFailures.clear();
-        ExecutorService probes=Executors.newFixedThreadPool(16);List<Future<NodeHealth>> pending=new ArrayList<>();
+        ExecutorService probes=Executors.newFixedThreadPool(24);List<Future<NodeHealth>> pending=new ArrayList<>();
         int epoch=networkEpoch.get();wakeLock.acquire(SCAN_BUDGET+10_000);
         try{
-            message="正在获取免费节点目录…搜索不会建立或切换 VPN";publish();
+            message="正在读取候选列表并快速探测…搜索不会切换 VPN";publish();
             NodeRepository repository=new NodeRepository(getCacheDir());NodeRepository.Result directory;
-            try{directory=repository.load(true);}catch(IOException e){try{directory=repository.load(false);}catch(IOException ignored){directory=repository.seed(getAssets().open("vpngate.csv"));}}
+            try{directory=repository.load(false);}catch(IOException e){try{directory=repository.load(true);}catch(IOException ignored){directory=repository.seed(getAssets().open("vpngate.csv"));}}
             check(token);Network network=physical();if(network==null)throw new IOException("没有可用的手机网络");
             epoch=networkEpoch.get();final int searchEpoch=epoch;int udp=0;
             CompletionService<NodeHealth> results=new ExecutorCompletionService<>(probes);
@@ -136,13 +138,13 @@ public final class NodeOptimizerService extends Service implements VpnStatus.Sta
                 pending.add(results.submit(()->{
                     check(token);long start=SystemClock.elapsedRealtime();
                     try(Socket socket=network.getSocketFactory().createSocket()){
-                        socket.connect(new InetSocketAddress(node.ip,port),2500);check(token);
+                        socket.connect(new InetSocketAddress(node.ip,port),1800);check(token);
                         if(networkEpoch.get()!=searchEpoch)throw new IOException("网络已变化");
                         return NodeHealth.reachable(node,SystemClock.elapsedRealtime(),Math.max(1,SystemClock.elapsedRealtime()-start));
                     }catch(IOException e){NodeHealth old=health(node.ip);if(old!=null&&!old.tunnelVerified)verified.remove(node.ip,old);failed(node,"端口不可达","当前网络无法连接此节点端口");return null;}
                 }));
             }
-            long deadline=SystemClock.elapsedRealtime()+45_000;int finished=0;
+            long deadline=SystemClock.elapsedRealtime()+30_000;int finished=0;
             while(finished<pending.size()){
                 check(token);if(networkEpoch.get()!=epoch)throw new IOException("网络变化，请重新搜索");
                 long left=deadline-SystemClock.elapsedRealtime();if(left<=0)break;
@@ -174,7 +176,7 @@ public final class NodeOptimizerService extends Service implements VpnStatus.Sta
             for(Connection connection:profile.mConnections)connection.mConnectTimeout=10;
             if(profile.checkProfile(this)!=de.blinkt.openvpn.R.string.no_error_found)throw new IOException("节点配置不支持当前连接内核");
             String expected=profile.getUUIDString();level=ConnectionStatus.LEVEL_START;engineUuid="";
-            current=node;ProfileManager.setTemporaryProfile(this,profile);VPNLaunchHelper.startOpenVpn(profile,this,"Aero verified node trial",true);
+            check(token);current=node;ProfileManager.setTemporaryProfile(this,profile);VPNLaunchHelper.startOpenVpn(profile,this,"Aero verified node trial",true);
             long end=SystemClock.elapsedRealtime()+30_000;
             synchronized(stateLock){while(!(level==ConnectionStatus.LEVEL_CONNECTED&&expected.equals(engineUuid))){check(token);if(level==ConnectionStatus.LEVEL_AUTH_FAILED)throw new IOException("认证失败");if(expected.equals(engineUuid)&&level==ConnectionStatus.LEVEL_NOTCONNECTED)throw new IOException("节点已拒绝连接或退出");if(SystemClock.elapsedRealtime()>=end)throw new IOException("隧道建立超时");stateLock.wait(300);}}
             NodeHealth result=measure(node,token);getSharedPreferences("aero",MODE_PRIVATE).edit().putString("connected_label",node.displayCountry()+" · "+node.ip).apply();return result;
@@ -215,7 +217,7 @@ public final class NodeOptimizerService extends Service implements VpnStatus.Sta
             public void requestStop()throws IOException{IOpenVPNServiceInternal service=engine;if(service!=null){try{service.stopVPN(false);}catch(RemoteException e){throw new IOException("无法停止前一条隧道",e);}}}
             public boolean inactive(){return level==ConnectionStatus.LEVEL_NOTCONNECTED||level==ConnectionStatus.LEVEL_AUTH_FAILED||level==ConnectionStatus.UNKNOWN_LEVEL;}
             public void pause()throws InterruptedException{synchronized(stateLock){stateLock.wait(200);}}
-        });current=null;}finally{intentionalStop=false;}
+        },current!=null);current=null;}finally{intentionalStop=false;}
     }
     private void safeStop(){boolean interrupted=Thread.interrupted();try{stopTunnel();}catch(Exception ignored){}finally{if(interrupted)Thread.currentThread().interrupt();}}
     @Override public void updateState(String state,String log,int resource,ConnectionStatus value,Intent intent){level=value;synchronized(stateLock){stateLock.notifyAll();}if(current!=null&&(value==ConnectionStatus.LEVEL_AUTH_FAILED||(value==ConnectionStatus.LEVEL_NOTCONNECTED&&!intentionalStop)))verified.remove(current.ip);publish();}
