@@ -112,7 +112,7 @@ public final class MainActivity extends Activity implements VpnStatus.StateListe
         search.addTextChangedListener(new TextWatcher(){public void beforeTextChanged(CharSequence s,int a,int c,int f){}public void onTextChanged(CharSequence s,int a,int b,int c){query=s.toString();filter();}public void afterTextChanged(Editable e){}});
         space(root,8);autoSwitch=new Switch(this);autoSwitch.setText("自动选择最优节点 · 每 10 分钟");autoSwitch.setTextSize(13);autoSwitch.setTextColor(INK);root.addView(autoSwitch);
         autoSwitch.setOnCheckedChangeListener((v,on)->{if(syncingSwitch)return;if(on)requestOptimizer(NodeOptimizerService.AUTO);else startOptimizer(NodeOptimizerService.AUTO,false);});
-        healthStatus=label("尚未检测：只显示已验证可用节点",11,MUTED);root.addView(healthStatus);
+        healthStatus=label("尚未检测：只显示已验证可用节点",11,MUTED);root.addView(healthStatus);healthStatus.setOnClickListener(v->new AlertDialog.Builder(this).setTitle("检测诊断").setMessage(optimizer==null?"请先检测节点，再查看失败原因":optimizer.diagnostics()).setPositiveButton("关闭",null).show());
         space(root,6);detect=button("检测可用节点",false);root.addView(detect,new LinearLayout.LayoutParams(-1,dp(40)));
         detect.setOnClickListener(v->requestOptimizer(NodeOptimizerService.SCAN));
         space(root,8);Button importButton=button("导入节点列表（CSV）",false);root.addView(importButton,new LinearLayout.LayoutParams(-1,dp(40)));
@@ -162,7 +162,7 @@ public final class MainActivity extends Activity implements VpnStatus.StateListe
         Comparator<Node> comparator=sort==1?Comparator.comparingLong(n->evidenceByIp.get(n.ip).latencyMs):sort==2?Comparator.comparingLong((Node n)->evidenceByIp.get(n.ip).bytesPerSecond).reversed():Comparator.comparingDouble((Node n)->evidenceByIp.get(n.ip).quality()).reversed();
         visible.sort(comparator);if(adapter==null)return;adapter.notifyDataSetChanged();count.setText(visible.size()+" 个");allTab.setTextColor(favoriteOnly?MUTED:BLUE);favoriteTab.setTextColor(favoriteOnly?BLUE:MUTED);
         empty.setVisibility(visible.isEmpty()?View.VISIBLE:View.GONE);
-        if(visible.isEmpty())empty.setText(!refreshing && nodes.isEmpty() && loadError!=null?"暂时无法获取节点\n"+loadError+"\n\n切换 Wi-Fi 后刷新，或导入 VPN Gate CSV 列表":refreshing?"正在搜索可用节点…":favoriteOnly?"还没有收藏的匹配节点\n点击节点右侧 ☆ 收藏":"没有近期通过 VPN 联网验证的匹配节点\n点击「检测可用节点」；无法连接的节点不会显示");
+        if(visible.isEmpty())empty.setText(!refreshing && nodes.isEmpty() && loadError!=null?"暂时无法获取节点\n"+loadError+"\n\n切换 Wi-Fi 后刷新，或导入 VPN Gate CSV 列表":refreshing?"正在搜索可用节点…":favoriteOnly?"还没有收藏的匹配节点\n点击节点右侧 ☆ 收藏":"没有近期通过 VPN 联网验证的匹配节点\n点击「检测可用节点」；点击开关下方状态文字查看诊断");
     }
     private void chooseNode(Node node){
         if(optimizer!=null&&optimizer.isBusy()){toast("正在检测，请等待完成或停止检测");return;}

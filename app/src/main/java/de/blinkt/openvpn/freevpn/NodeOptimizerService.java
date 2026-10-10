@@ -43,6 +43,16 @@ public final class NodeOptimizerService extends Service implements VpnStatus.Sta
     };
     private void invalidateNetwork(){networkEpoch.incrementAndGet();verified.clear();main.post(()->{if(destroyed)return;if(!busy){message="网络已变化，需要重新验证节点";if(automatic)nextCheck=0;}publish();});}
     private int cursor;
+    private final Map<String,Integer> failures=new ConcurrentHashMap<>();
+    private final List<String> recentFailures=new CopyOnWriteArrayList<>();
+    public String diagnostics(){
+        StringBuilder text=new StringBuilder("只记录本轮检测结果，不包含账号或配置密钥。\n可用节点："+available().size()+"\n");
+        for(String stage:Arrays.asList("端口不可达","隧道未建立","隧道内联网失败"))text.append(stage).append("：").append(failures.getOrDefault(stage,0)).append('\n');
+        for(String reason:recentFailures)text.append('\n').append(reason);
+        return text.toString();
+    }
+    private void failed(Node node,String stage,String reason){failures.merge(stage,1,Integer::sum);if(recentFailures.size()<8)recentFailures.add(node.displayCountry()+" · "+node.ip+"："+reason);}
+
     private long nextCheck;
     private final ServiceConnection engineConnection=new ServiceConnection(){
         public void onServiceConnected(ComponentName name,IBinder b){engine=IOpenVPNServiceInternal.Stub.asInterface(b);synchronized(stateLock){stateLock.notifyAll();}}
@@ -113,7 +123,7 @@ public final class NodeOptimizerService extends Service implements VpnStatus.Sta
     private void submitScan(){submit(()->scan(generation.get()));}
     private void check(int token)throws InterruptedException {if(destroyed||Thread.currentThread().isInterrupted()||token!=generation.get())throw new InterruptedException();}
     private void scan(int token){
-        Node original=current;NodeHealth best=null;
+        failures.clear();recentFailures.clear();Node original=current;NodeHealth best=null;
         wakeLock.acquire(SCAN_BUDGET+60_000);
         long deadline=SystemClock.elapsedRealtime()+SCAN_BUDGET;
         try {
@@ -133,11 +143,11 @@ public final class NodeOptimizerService extends Service implements VpnStatus.Sta
                 check(token);if(SystemClock.elapsedRealtime()>deadline-45_000||tried>=12)break;
                 inspected++;if(original!=null && node.ip.equals(original.ip) && best!=null)continue;
                 message="检测端口 "+inspected+"/"+candidates.size()+" · 已验证 "+available().size()+" 个";publish();
-                if(!reachable(node,token)){verified.remove(node.ip);continue;}
+                if(!reachable(node,token)){verified.remove(node.ip);failed(node,"端口不可达","当前网络无法连接此节点端口");continue;}
                 tried++;stopTunnel();check(token);
                 message="验证隧道 "+tried+"/12 · "+node.displayCountry()+" · "+node.ip;publish();
                 try{NodeHealth h=trial(node,token);verified.put(node.ip,h);if(h.substantiallyBetterThan(best))best=h;}
-                catch(IOException e){verified.remove(node.ip);stopTunnel();}
+                catch(IOException e){verified.remove(node.ip);String reason=e.getMessage()==null?"连接失败":e.getMessage();failed(node,reason.contains("HTTPS")||reason.contains("路由")?"隧道内联网失败":"隧道未建立",reason);stopTunnel();}
                 publish();
             }
             cursor+=inspected;check(token);
