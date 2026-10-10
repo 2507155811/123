@@ -1,0 +1,25 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <application android:name="de.blinkt.openvpn.core.ICSOpenVPNApplication" android:label="Aero VPN" android:icon="@drawable/ic_aero" android:theme="@style/AeroTheme" android:allowBackup="false" android:usesCleartextTraffic="false" android:supportsRtl="true">
+        <activity android:name="de.blinkt.openvpn.freevpn.MainActivity" android:exported="true" android:windowSoftInputMode="adjustResize">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity>
+        <activity-alias android:name="${applicationId}.activities.MainActivity" android:targetActivity="de.blinkt.openvpn.freevpn.MainActivity" android:exported="false" />
+        <activity android:name="de.blinkt.openvpn.LaunchVPN" android:exported="false" android:theme="@style/blinkt.dialog" />
+        <activity android:name="de.blinkt.openvpn.activities.DisconnectVPN" android:exported="false" android:theme="@style/blinkt.dialog" />
+        <activity android:name="de.blinkt.openvpn.activities.NotImplemented" android:exported="false" />
+        <activity-alias android:name="de.blinkt.openvpn.activities.LogWindow" android:targetActivity="de.blinkt.openvpn.freevpn.MainActivity" android:exported="false" />
+        <activity-alias android:name="de.blinkt.openvpn.activities.Req" android:targetActivity="de.blinkt.openvpn.activities.NotImplemented" android:exported="false" />
+        <service android:name="de.blinkt.openvpn.core.OpenVPNService" android:exported="true" android:permission="android.permission.BIND_VPN_SERVICE" android:foregroundServiceType="specialUse" android:process=":openvpn">
+            <intent-filter><action android:name="android.net.VpnService"/></intent-filter>
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="OpenVPN encrypted network tunnel" />
+        </service>
+        <service android:name="de.blinkt.openvpn.core.OpenVPNStatusService" android:exported="false" android:process=":openvpn" />
+        <service android:name="de.blinkt.openvpn.core.keepVPNAlive" android:exported="false" android:process=":openvpn" android:permission="android.permission.BIND_JOB_SERVICE" />
+    </application>
+</manifest>

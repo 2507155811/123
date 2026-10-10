@@ -1,0 +1,10 @@
+.gradle/
+.engine/
+**/build/
+**/.cxx/
+local.properties
+*.apk
+*.jks
+__pycache__/
+*.pyc
+artifacts/*.tar.gz
