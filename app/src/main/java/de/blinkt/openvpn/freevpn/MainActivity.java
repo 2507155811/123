@@ -29,14 +29,14 @@ public final class MainActivity extends Activity implements VpnStatus.StateListe
     private int sort=0; private String country="全部地区", query="", restoredIp="";
     private long fetchedAt;private String loadError;
     private TextView status, selectedLabel, source, count, empty, traffic, allTab, favoriteTab;
-    private Button connect, refresh, detect;
+    private Button connect, refresh, detect, speedButton;
     private Switch autoSwitch;
     private TextView healthStatus;
     private NodeOptimizerService optimizer;
     private boolean optimizerBound, syncingSwitch;
     private String pendingOptimizerAction;
     private String pendingOptimizerIp;
-    private final Runnable optimizerObserver=()->{if(isDestroyed())return;syncingSwitch=true;autoSwitch.setChecked(optimizer!=null&&optimizer.isAutomatic());syncingSwitch=false;initiating=optimizer!=null&&optimizer.isBusy();detect.setEnabled(!initiating);refresh.setEnabled(!refreshing&&!initiating);healthStatus.setText(optimizer==null?"尚未检测：只显示已验证可用节点":optimizer.message());if(optimizer!=null&&optimizer.current()!=null)selected=optimizer.current();else if(selected!=null&&(optimizer==null||optimizer.health(selected.ip)==null))selected=null;connected=tunnelEstablished&&optimizer!=null&&optimizer.current()!=null&&optimizer.health(optimizer.current().ip)!=null;if(tunnelEstablished)status.setText(connected?"已验证联网":"隧道已建立 · 验证联网中");filter();updateConnection();};
+    private final Runnable optimizerObserver=()->{if(isDestroyed())return;syncingSwitch=true;autoSwitch.setChecked(optimizer!=null&&optimizer.isAutomatic());syncingSwitch=false;initiating=optimizer!=null&&optimizer.isBusy();detect.setEnabled(!initiating);speedButton.setEnabled(!initiating&&tunnelEstablished&&optimizer!=null&&optimizer.current()!=null);refresh.setEnabled(!refreshing&&!initiating);healthStatus.setText(optimizer==null?"尚未检测：只显示已验证可用节点":optimizer.message());if(optimizer!=null&&optimizer.current()!=null)selected=optimizer.current();else if(selected!=null&&(optimizer==null||optimizer.health(selected.ip)==null))selected=null;connected=tunnelEstablished&&optimizer!=null&&optimizer.current()!=null&&optimizer.health(optimizer.current().ip)!=null;if(tunnelEstablished)status.setText(connected?"已验证联网":"系统隧道已建立 · 待联网验证");filter();updateConnection();};
     private final ServiceConnection optimizerConnection=new ServiceConnection(){
         public void onServiceConnected(ComponentName name,IBinder binder){optimizer=((NodeOptimizerService.LocalBinder)binder).service();optimizer.observe(optimizerObserver);}
         public void onServiceDisconnected(ComponentName name){optimizer=null;filter();}
@@ -113,7 +113,7 @@ public final class MainActivity extends Activity implements VpnStatus.StateListe
         space(root,8);autoSwitch=new Switch(this);autoSwitch.setText("自动选择最优节点 · 每 10 分钟");autoSwitch.setTextSize(13);autoSwitch.setTextColor(INK);root.addView(autoSwitch);
         autoSwitch.setOnCheckedChangeListener((v,on)->{if(syncingSwitch)return;if(on)requestOptimizer(NodeOptimizerService.AUTO);else startOptimizer(NodeOptimizerService.AUTO,false);});
         healthStatus=label("尚未检测：只显示已验证可用节点",11,MUTED);root.addView(healthStatus);healthStatus.setOnClickListener(v->new AlertDialog.Builder(this).setTitle("检测诊断").setMessage(optimizer==null?"请先检测节点，再查看失败原因":optimizer.diagnostics()).setPositiveButton("关闭",null).show());
-        space(root,6);detect=button("检测可用节点",false);root.addView(detect,new LinearLayout.LayoutParams(-1,dp(40)));
+        space(root,6);LinearLayout actions=row();detect=button("检测可用节点",false);actions.addView(detect,new LinearLayout.LayoutParams(0,dp(40),1));speedButton=button("当前 VPN 测速",false);speedButton.setEnabled(false);LinearLayout.LayoutParams speedLayout=new LinearLayout.LayoutParams(0,dp(40),1);speedLayout.leftMargin=dp(8);actions.addView(speedButton,speedLayout);root.addView(actions);speedButton.setOnClickListener(v->startOptimizer(NodeOptimizerService.SPEED,true));
         detect.setOnClickListener(v->requestOptimizer(NodeOptimizerService.SCAN));
         space(root,8);Button importButton=button("导入节点列表（CSV）",false);root.addView(importButton,new LinearLayout.LayoutParams(-1,dp(40)));
         importButton.setOnClickListener(v->{if(refreshing){toast("请等待当前更新完成");return;}Intent file=new Intent(Intent.ACTION_OPEN_DOCUMENT);file.addCategory(Intent.CATEGORY_OPENABLE);file.setType("*/*");startActivityForResult(file,8);});
@@ -128,7 +128,7 @@ public final class MainActivity extends Activity implements VpnStatus.StateListe
     }
     private void setSpinner(Spinner s,List<String> values){ArrayAdapter<String> a=new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,values);a.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);s.setAdapter(a);}
     private void showAbout(){new AlertDialog.Builder(this).setTitle("Aero VPN · 自由探索")
-            .setMessage("免费节点：VPN Gate（日本筑波大学志愿者项目）\n来源：www.vpngate.net\n备用分发：本项目 GitHub 目录，每小时计划更新（更新可能延迟）\n安装包内置带采集时间的候选快照，最多使用七天。仅显示本机十分钟内通过隧道 HTTPS 联网验证的节点。自动检测采用前台服务；切换节点会短暂断网，系统省电或结束进程可能延迟检测。\n\n仅显示地区代码不属于 CN / HK / MO 的节点；国家位置未经独立验证。节点卡片显示本机 HTTPS 联网耗时与 256 KB 下载样本速度，未测得速度会标注。推荐排序只代表本轮样本结果。\n\n节点可能随时离线或记录访问，请勿传输敏感资料。应用无账号、广告或分析 SDK，收藏与最长七天的离线列表保存在本机。\n\n内置 OpenVPN for Android 0.7.62，遵循 GPLv2 及其附加条款。源码和许可证随项目提供。")
+            .setMessage("免费节点：VPN Gate（日本筑波大学志愿者项目）\n来源：www.vpngate.net\n备用分发：本项目 GitHub 目录，每小时计划更新（更新可能延迟）\n安装包内置带采集时间的候选快照，最多使用七天。仅显示本机十分钟内通过隧道 HTTPS 联网验证的节点。自动检测采用前台服务；切换节点会短暂断网，系统省电或结束进程可能延迟检测。\n\n仅显示地区代码不属于 CN / HK / MO 的节点；国家位置未经独立验证。节点卡片显示本机 HTTPS 联网耗时与 最多 1 MB 下载样本速度，未测得速度会标注。推荐排序只代表本轮样本结果。\n\n节点可能随时离线或记录访问，请勿传输敏感资料。应用无账号、广告或分析 SDK，收藏与最长七天的离线列表保存在本机。\n\n内置 OpenVPN for Android 0.7.62，遵循 GPLv2 及其附加条款。源码和许可证随项目提供。")
             .setNeutralButton("手机 VPN 设置",(d,w)->{try{startActivity(new Intent(android.provider.Settings.ACTION_VPN_SETTINGS));}catch(ActivityNotFoundException e){startActivity(new Intent(android.provider.Settings.ACTION_SETTINGS));}}).setPositiveButton("关闭",null).show();}
     private void loadNodes(){
         if(refreshing)return;loadError=null;refreshing=true;refresh.setEnabled(false);refresh.setText("…");
@@ -183,7 +183,7 @@ public final class MainActivity extends Activity implements VpnStatus.StateListe
     private void requestOptimizer(String action){
         if(optimizer!=null&&optimizer.isBusy()){toast("检测正在进行，可点击取消连接停止");return;}
         new AlertDialog.Builder(this).setTitle("真实 VPN 联网检测")
-            .setMessage("将逐个建立 VPN 隧道并发出 HTTPS 请求，每个成功节点最多下载约 256 KB 测速。检测其他节点会暂时断开或切换当前连接。每轮最多测试 12 个可达候选，其余候选轮换检测；自动模式选择本轮较优节点。是否开始？")
+            .setMessage("将逐个建立 VPN 隧道并发出 HTTPS 请求，每次测速最多下载约 2 MB（含备用地址）。检测其他节点会暂时断开或切换当前连接。每轮最多测试 12 个可达候选，其余候选轮换检测；自动模式选择本轮较优节点。是否开始？")
             .setNegativeButton("取消",(d,w)->{syncingSwitch=true;autoSwitch.setChecked(optimizer!=null&&optimizer.isAutomatic());syncingSwitch=false;})
             .setPositiveButton("开始",(d,w)->{pendingOptimizerAction=action;pendingOptimizerIp=selected==null?null:selected.ip;if(Build.VERSION.SDK_INT>=33&&checkSelfPermission("android.permission.POST_NOTIFICATIONS")!=PackageManager.PERMISSION_GRANTED)requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"},9);else authorizeOptimizer();}).show();
     }
@@ -209,7 +209,7 @@ public final class MainActivity extends Activity implements VpnStatus.StateListe
         tunnelEstablished=level==ConnectionStatus.LEVEL_CONNECTED;connected=tunnelEstablished&&optimizer!=null&&optimizer.current()!=null&&optimizer.health(optimizer.current().ip)!=null;
         active=level!=ConnectionStatus.LEVEL_NOTCONNECTED && level!=ConnectionStatus.LEVEL_AUTH_FAILED && level!=ConnectionStatus.UNKNOWN_LEVEL;
         switch(level){
-            case LEVEL_CONNECTED:status.setText(connected?"已验证联网":"隧道已建立 · 验证联网中");break;
+            case LEVEL_CONNECTED:status.setText(connected?"已验证联网":"系统隧道已建立 · 待联网验证");break;
             case LEVEL_AUTH_FAILED:initiating=false;status.setText("认证失败");toast("节点认证失败，请换一个节点");break;
             case LEVEL_NONETWORK:status.setText("等待网络…");break;
             case LEVEL_VPNPAUSED:status.setText("连接已暂停");break;
@@ -228,7 +228,12 @@ public final class MainActivity extends Activity implements VpnStatus.StateListe
             Node n=visible.get(position);LinearLayout card=row();card.setPadding(dp(14),dp(13),dp(12),dp(13));
             GradientDrawable bg=background(Color.WHITE,16);if(selected!=null&&selected.ip.equals(n.ip))bg.setStroke(dp(2),BLUE);card.setBackground(bg);
             TextView flag=label(n.flag(),27,INK);flag.setGravity(Gravity.CENTER);flag.setBackground(background(0xfff3f6fc,12));card.addView(flag,new LinearLayout.LayoutParams(dp(44),dp(44)));
-            LinearLayout description=column();description.setPadding(dp(12),0,0,0);TextView name=label(n.displayCountry(),16,INK);bold(name);description.addView(name);description.addView(label(n.ip,11,MUTED));NodeHealth evidence=optimizer==null?null:optimizer.health(n.ip);TextView stats=label(evidence==null?"验证已过期，请重新检测":"HTTPS "+evidence.latencyMs+" ms · "+(evidence.bytesPerSecond>0?String.format(Locale.ROOT,"%.2f Mbps",evidence.bytesPerSecond*8/1_000_000.0):"速度未测得")+" · 联网验证通过",10,MUTED);stats.setPadding(0,dp(4),0,0);description.addView(stats);card.addView(description,new LinearLayout.LayoutParams(0,-2,1));
+            LinearLayout description=column();description.setPadding(dp(12),0,0,0);TextView name=label(n.displayCountry(),16,INK);bold(name);description.addView(name);description.addView(label(n.ip,11,MUTED));NodeHealth evidence=optimizer==null?null:optimizer.health(n.ip);
+            TextView stats=label(evidence==null?"验证已过期，请重新检测":"实测 HTTPS "+evidence.latencyMs+" ms · 联网验证通过",10,MUTED);stats.setPadding(0,dp(4),0,0);description.addView(stats);
+            String speed=evidence==null||evidence.bytesPerSecond<=0?"下载速度未测得":String.format(Locale.ROOT,"下载 %.2f Mbps · %.2f MB 样本",evidence.bytesPerSecond*8/1_000_000.0,evidence.sampleBytes/1_000_000.0);
+            TextView measured=label(speed,12,evidence!=null&&evidence.bytesPerSecond>0?BLUE:MUTED);description.addView(measured);
+            if(evidence!=null)description.addView(label("验证于 "+Math.max(0,(SystemClock.elapsedRealtime()-evidence.checkedAt)/1000)+" 秒前",10,MUTED));
+            card.addView(description,new LinearLayout.LayoutParams(0,-2,1));
             TextView star=label(favorites.contains(n.ip)?"★":"☆",26,favorites.contains(n.ip)?0xffe6ac36:MUTED);star.setGravity(Gravity.CENTER);star.setContentDescription(favorites.contains(n.ip)?"取消收藏 "+n.ip:"收藏 "+n.ip);card.addView(star,new LinearLayout.LayoutParams(dp(48),dp(48)));star.setOnClickListener(v->{if(!favorites.add(n.ip))favorites.remove(n.ip);prefs.edit().putStringSet("favorites",new HashSet<>(favorites)).apply();filter();});return card;
         }
     }

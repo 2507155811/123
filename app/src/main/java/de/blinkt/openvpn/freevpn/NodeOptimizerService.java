@@ -16,7 +16,7 @@ import javax.net.ssl.HttpsURLConnection;
 
 /** Owns sequential tunnel trials and the 10 minute foreground optimization schedule. */
 public final class NodeOptimizerService extends Service implements VpnStatus.StateListener {
-    public static final String SCAN="scan",SELECT="select",STOP="stop",AUTO="auto";
+    public static final String SCAN="scan",SELECT="select",STOP="stop",AUTO="auto",SPEED="speed";
     private static final long PERIOD=10*60*1000L,SCAN_BUDGET=8*60*1000L;
     public final class LocalBinder extends Binder {public NodeOptimizerService service(){return NodeOptimizerService.this;}}
     private final LocalBinder binder=new LocalBinder();
@@ -101,6 +101,9 @@ public final class NodeOptimizerService extends Service implements VpnStatus.Sta
                 else message=busy?"自动选择已关闭；完成本轮检测后不再定时检测":"自动选择已关闭";
                 publish();break;
             case SCAN:if(!busy)submitScan();break;
+            case SPEED:
+                if(!busy&&current!=null&&level==ConnectionStatus.LEVEL_CONNECTED){Node testing=current;submit(()->{int token=generation.get();message="正在通过当前 VPN 实测下载速度…";publish();try{NodeHealth h=measure(testing,token);verified.put(h.node.ip,h);message=h.bytesPerSecond>0?String.format(Locale.ROOT,"实测下载 %.2f Mbps · %s",h.bytesPerSecond*8/1_000_000.0,h.speedSource):"当前 VPN 联网正常，测速地址不可达，未测得速度";}catch(Exception e){verified.remove(testing.ip);if(token==generation.get())message="当前隧道联网验证失败，请重新检测";}finally{if(token==generation.get()&&!stopping)busy=false;publish();}});}
+                else {message="请先连接通过验证的 VPN 节点";publish();}break;
             case SELECT:
                 String ip=intent.getStringExtra("ip");NodeHealth health=health(ip==null?"":ip);
                 if(health==null){message="节点验证已过期，请重新检测";publish();}else submit(()->{int token=generation.get();message="正在重新验证所选节点…";publish();try{check(token);stopTunnel();NodeHealth result=trial(health.node,token);verified.put(result.node.ip,result);message="已验证并连接："+result.node.displayCountry();}catch(Exception e){verified.remove(health.node.ip);safeStop();if(token==generation.get())message="所选节点当前不可用，已隐藏";}finally{if(token==generation.get()&&!stopping)busy=false;publish();}});
@@ -213,12 +216,20 @@ public final class NodeOptimizerService extends Service implements VpnStatus.Sta
         }
         if(!online)throw new IOException("隧道内 HTTPS 联网验证失败");
         long latency=Math.max(1,SystemClock.elapsedRealtime()-start),rate=0;check(token);
-        HttpsURLConnection download=(HttpsURLConnection)vpn.openConnection(new URL("https://speed.cloudflare.com/__down?bytes=262144"));download.setConnectTimeout(3000);download.setReadTimeout(3000);download.setInstanceFollowRedirects(false);
-        long began=SystemClock.elapsedRealtime();
-        try{if(download.getResponseCode()==200){try(InputStream in=download.getInputStream()){byte[] buffer=new byte[8192];int total=0,n;while(total<262144&&(n=in.read(buffer,0,Math.min(buffer.length,262144-total)))!=-1){check(token);total+=n;if(SystemClock.elapsedRealtime()-began>6000)break;}if(total==262144)rate=total*1000L/Math.max(1,SystemClock.elapsedRealtime()-began);}}}catch(IOException ignored){}finally{download.disconnect();}
+        long sampleBytes=0;String speedSource="";
+        String[] speedUrls={"https://speed.cloudflare.com/__down?bytes=1048576","https://raw.githubusercontent.com/2507155811/123/main/artifacts/AeroVPN-debug.apk"};
+        for(int i=0;i<speedUrls.length;i++){
+            check(token);message="VPN 隧道测速 · "+(i==0?"Cloudflare":"GitHub 备用");publish();
+            HttpsURLConnection download=(HttpsURLConnection)vpn.openConnection(new URL(speedUrls[i]));
+            download.setConnectTimeout(4000);download.setReadTimeout(4000);download.setInstanceFollowRedirects(false);
+            download.setRequestProperty("Accept-Encoding","identity");download.setRequestProperty("Cache-Control","no-cache");download.setRequestProperty("Range","bytes=0-1048575");
+            try{int status=download.getResponseCode();if(status==200||status==206){String encoding=download.getHeaderField("Content-Encoding");if(encoding!=null&&!encoding.equalsIgnoreCase("identity"))continue;
+                try(InputStream in=download.getInputStream()){DownloadSample.Result sample=DownloadSample.measure(in,SystemClock::elapsedRealtime,()->check(token));rate=sample.bytesPerSecond;sampleBytes=sample.bytes;speedSource=i==0?"Cloudflare":"GitHub";break;}
+            }}catch(IOException ignored){}finally{download.disconnect();}
+        }
         if(networkEpoch.get()!=epoch)throw new IOException("网络变化，验证结果已作废");
         if(level!=ConnectionStatus.LEVEL_CONNECTED)throw new IOException("节点连接已中断");
-        return new NodeHealth(node,SystemClock.elapsedRealtime(),latency,rate);
+        return new NodeHealth(node,SystemClock.elapsedRealtime(),latency,rate,sampleBytes,speedSource);
     }
     private void stopTunnel()throws IOException,InterruptedException {
         keepVPNAlive.unscheduleKeepVPNAliveJobService(this);
