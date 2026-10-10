@@ -1,5 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
@@ -15,6 +16,9 @@
         <activity android:name="de.blinkt.openvpn.activities.NotImplemented" android:exported="false" />
         <activity-alias android:name="de.blinkt.openvpn.activities.LogWindow" android:targetActivity="de.blinkt.openvpn.freevpn.MainActivity" android:exported="false" />
         <activity-alias android:name="de.blinkt.openvpn.activities.Req" android:targetActivity="de.blinkt.openvpn.activities.NotImplemented" android:exported="false" />
+        <service android:name="de.blinkt.openvpn.freevpn.NodeOptimizerService" android:exported="false" android:foregroundServiceType="specialUse">
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="User initiated sequential VPN tunnel validation and ten minute node optimization" />
+        </service>
         <service android:name="de.blinkt.openvpn.core.OpenVPNService" android:exported="true" android:permission="android.permission.BIND_VPN_SERVICE" android:foregroundServiceType="specialUse" android:process=":openvpn">
             <intent-filter><action android:name="android.net.VpnService"/></intent-filter>
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="OpenVPN encrypted network tunnel" />
