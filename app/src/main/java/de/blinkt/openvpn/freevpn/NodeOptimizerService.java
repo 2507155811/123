@@ -35,7 +35,8 @@ public final class NodeOptimizerService extends Service implements VpnStatus.Sta
     private volatile Future<?> work;
     private ConnectivityManager connectivity;
     private PowerManager.WakeLock wakeLock;
-    private boolean bound,started;
+    private volatile boolean bound;
+    private boolean started;
     private final AtomicInteger networkEpoch=new AtomicInteger();
     private final ConnectivityManager.NetworkCallback networkChanges=new ConnectivityManager.NetworkCallback(){
         @Override public void onAvailable(Network network){invalidateNetwork();}
@@ -101,13 +102,13 @@ public final class NodeOptimizerService extends Service implements VpnStatus.Sta
                 else {message="请先连接通过验证的 VPN 节点";publish();}break;
             case SELECT:
                 String ip=intent.getStringExtra("ip");NodeHealth health=health(ip==null?"":ip);
-                if(health==null){message="节点验证已过期，请重新检测";publish();}else submit(()->{int token=generation.get();message="正在重新验证所选节点…";publish();try{check(token);stopTunnel();NodeHealth result=trial(health.node,token);verified.put(result.node.ip,result);message="已验证并连接："+result.node.displayCountry();}catch(Exception e){verified.remove(health.node.ip);safeStop();if(token==generation.get())message="所选节点当前不可用，已隐藏";}finally{if(token==generation.get()&&!stopping)busy=false;publish();}});
+                if(health==null){message="节点验证已过期，请重新检测";publish();}else submit(()->{int token=generation.get();message="正在重新验证所选节点…";publish();try{check(token);stopTunnel();NodeHealth result=trial(health.node,token);verified.put(result.node.ip,result);message="已验证并连接："+result.node.displayCountry();}catch(Exception e){verified.remove(health.node.ip);safeStop();if(token==generation.get())message="连接失败："+(e.getMessage()==null?"请重试或换节点":e.getMessage());}finally{if(token==generation.get()&&!stopping)busy=false;publish();}});
                 break;
             case CANCEL:
                 if(searching){generation.incrementAndGet();if(work!=null)work.cancel(true);searching=false;busy=false;message="搜索已停止，当前 VPN 连接保留";publish();}break;
             case STOP:
                 stopping=true;searching=false;busy=true;message="正在断开系统 VPN…";int stopToken=generation.incrementAndGet();if(work!=null)work.cancel(true);publish();
-                worker.execute(()->{try{stopTunnel();main.post(()->{if(stopToken!=generation.get()||destroyed)return;stopping=false;busy=false;message="已断开，可重新连接";started=false;stopForeground(STOP_FOREGROUND_REMOVE);stopSelfResult(id);publish();});}
+                worker.execute(()->{try{stopTunnel();main.post(()->{if(stopToken!=generation.get()||destroyed)return;releaseEngine();level=ConnectionStatus.LEVEL_NOTCONNECTED;engineUuid="";stopping=false;busy=false;message="已断开，可重新连接";started=false;stopForeground(STOP_FOREGROUND_REMOVE);stopSelfResult(id);publish();});}
                 catch(Exception e){busy=false;stopping=false;message="尚未确认断开，请重试或在手机 VPN 设置中断开";publish();}});break;
             default:break;
         }
@@ -182,8 +183,13 @@ public final class NodeOptimizerService extends Service implements VpnStatus.Sta
             NodeHealth result=measure(node,token);getSharedPreferences("aero",MODE_PRIVATE).edit().putString("connected_label",node.displayCountry()+" · "+node.ip).apply();return result;
         }catch(InterruptedException|IOException e){throw e;}catch(Exception e){throw new IOException("无法建立节点隧道",e);}
     }
+    private void releaseEngine(){
+        engine=null;if(bound){unbindService(engineConnection);bound=false;}
+        stopService(new Intent(this,OpenVPNService.class));
+    }
     private void awaitEngine(int token)throws IOException,InterruptedException {
-        long end=SystemClock.elapsedRealtime()+5_000;
+        if(!bound)main.post(()->{if(destroyed||stopping||bound)return;Intent intent=new Intent(this,OpenVPNService.class).setAction(OpenVPNService.START_SERVICE);bound=bindService(intent,engineConnection,Context.BIND_AUTO_CREATE);});
+        long end=SystemClock.elapsedRealtime()+8_000;
         synchronized(stateLock){while(engine==null){check(token);if(SystemClock.elapsedRealtime()>=end)throw new IOException("连接服务尚未就绪");stateLock.wait(200);}}
     }
     private NodeHealth measure(Node node,int token)throws IOException,InterruptedException {

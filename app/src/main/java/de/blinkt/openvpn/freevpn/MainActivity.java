@@ -76,7 +76,7 @@ public final class MainActivity extends Activity implements VpnStatus.StateListe
     @Override protected void onStart(){super.onStart();
         VpnStatus.addStateListener(this);VpnStatus.addByteCountListener(bytes);
         Intent intent=new Intent(this,OpenVPNService.class);intent.setAction(OpenVPNService.START_SERVICE);
-        bound=bindService(intent,serviceConnection,Context.BIND_AUTO_CREATE);
+        // Connection ownership belongs to NodeOptimizerService; avoid retaining an idle engine.
         optimizerBound=bindService(new Intent(this,NodeOptimizerService.class),optimizerConnection,Context.BIND_AUTO_CREATE);
         handler.post(checkExpiry);
     }
