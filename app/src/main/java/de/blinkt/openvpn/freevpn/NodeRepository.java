@@ -23,18 +23,21 @@ public final class NodeRepository {
     }
     private static final class Download {final String csv,origin;Download(String csv,String origin){this.csv=csv;this.origin=origin;}}
     public Result load(boolean network)throws IOException {
-        ExecutorService sources=Executors.newFixedThreadPool(2);
+        ExecutorService sources=Executors.newFixedThreadPool(3);
         Future<Result> gate=sources.submit(()->{try{return loadGate(network);}catch(IOException e){return loadGate(false);}});
         Future<List<Node>> book=sources.submit(()->{VpnBookRepository provider=new VpnBookRepository(cache.getParentFile());try{return provider.load(network);}catch(IOException e){return provider.load(false);}});
+        Future<List<Node>> riseup=sources.submit(()->{RiseupRepository provider=new RiseupRepository(cache.getParentFile());try{return provider.load(network);}catch(IOException e){return provider.load(false);}});
         Map<String,Node> combined=new LinkedHashMap<>();Result gateResult=null;List<Node> bookResult=Collections.emptyList();long deadline=System.nanoTime()+TimeUnit.SECONDS.toNanos(40);
         try{
             try{gateResult=gate.get(Math.max(1,deadline-System.nanoTime()),TimeUnit.NANOSECONDS);for(Node n:gateResult.nodes)combined.put(n.ip,n);}catch(ExecutionException|TimeoutException ignored){}
             try{bookResult=book.get(Math.max(1,deadline-System.nanoTime()),TimeUnit.NANOSECONDS);for(Node n:bookResult)combined.putIfAbsent(n.ip,n);}catch(ExecutionException|TimeoutException ignored){}
+            int riseupCount=0;try{List<Node> extra=riseup.get(Math.max(1,deadline-System.nanoTime()),TimeUnit.NANOSECONDS);riseupCount=extra.size();for(Node n:extra)combined.putIfAbsent(n.ip,n);}catch(ExecutionException|TimeoutException ignored){}
             if(combined.isEmpty())throw new IOException("所有来源暂时不可达，且没有有效缓存");
             String origin=(gateResult==null?"":"VPN Gate "+gateResult.nodes.size()+" 个候选")+(bookResult.isEmpty()?"":" · VPNBook "+bookResult.size()+" 个候选（需官方共享密码）");
+            origin+=riseupCount>0?" · RiseupVPN "+riseupCount+" 个候选":" · RiseupVPN 暂不可用";
             return new Result(new ArrayList<>(combined.values()),gateResult!=null&&gateResult.cached,gateResult==null?System.currentTimeMillis():gateResult.fetchedAt,origin);
         }catch(InterruptedException e){Thread.currentThread().interrupt();throw new InterruptedIOException("搜索已取消");}
-        finally{gate.cancel(true);book.cancel(true);sources.shutdownNow();}
+        finally{gate.cancel(true);book.cancel(true);riseup.cancel(true);sources.shutdownNow();}
     }
     private Result loadGate(boolean network) throws IOException {
         if(!network) return cached();

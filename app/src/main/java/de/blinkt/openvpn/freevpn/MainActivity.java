@@ -125,7 +125,7 @@ public final class MainActivity extends Activity implements VpnStatus.StateListe
     }
     private void showSources(){
         LinearLayout content=column();content.setPadding(dp(20),dp(8),dp(20),0);
-        content.addView(label("VPN Gate：免账号，直接参与搜索。\nVPNBook：10 台境外服务器，需要官网当前共享密码。官网获取密码需完成人机验证。用户名固定为 vpnbook。",13,INK));
+        content.addView(label("VPN Gate：免账号，直接参与搜索。\nRiseupVPN：开源 LEAP 官方免费来源，免账号；需 API 可达并成功取得匿名证书。\nVPNBook：10 台境外服务器，需要官网当前共享密码。官网获取密码需完成人机验证。用户名固定为 vpnbook。",13,INK));
         EditText password=new EditText(this);password.setSingleLine(true);password.setInputType(android.text.InputType.TYPE_CLASS_TEXT|android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);password.setHint("VPNBook 共享密码（留空清除）");content.addView(password);
         content.addView(label(ProviderPassword.read(this).isEmpty()?"尚未设置 VPNBook 密码":"已保存 VPNBook 密码，更新时重新输入",11,MUTED));
         new AlertDialog.Builder(this).setTitle("免费节点来源").setView(content).setNegativeButton("取消",null)
@@ -134,7 +134,7 @@ public final class MainActivity extends Activity implements VpnStatus.StateListe
     }
     private void setSpinner(Spinner s,List<String> values){ArrayAdapter<String> a=new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,values);a.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);s.setAdapter(a);}
     private void showAbout(){new AlertDialog.Builder(this).setTitle("Aero VPN · 自由探索")
-            .setMessage("免费节点：VPN Gate（日本筑波大学志愿者项目）与 VPNBook\n来源：www.vpngate.net 与 www.vpnbook.com\n备用分发：本项目 GitHub 目录，每小时计划更新（更新可能延迟）\n安装包内置带采集时间的候选快照，最多使用七天。搜索通过并发 TCP 端口检查显示十分钟内的可达节点，不建立或切换 VPN。端口可达不保证认证与联网成功；选中连接后才验证隧道内 HTTPS 联网并测速。UDP 配置无法用 TCP 探测，未列入搜索结果。搜索完成后由你选择连接，不定时切换。\n\n仅显示地区代码不属于 CN / HK / MO 的节点；国家位置未经独立验证。连接前显示 TCP 连接耗时；连接验证后显示 HTTPS 联网耗时与最多 1 MB 下载样本速度。推荐排序只代表本轮样本结果。\n\n节点可能随时离线或记录访问，请勿传输敏感资料。应用无账号、广告或分析 SDK，收藏与最长七天的离线列表保存在本机。\n\n内置 OpenVPN for Android 0.7.62，遵循 GPLv2 及其附加条款。源码和许可证随项目提供。")
+            .setMessage("免费节点：VPN Gate（日本筑波大学志愿者项目）、VPNBook 与 RiseupVPN\n来源：www.vpngate.net、www.vpnbook.com、api.black.riseup.net\n备用分发：本项目 GitHub 目录，每小时计划更新（更新可能延迟）\n安装包内置带采集时间的候选快照，最多使用七天。搜索通过并发 TCP 端口检查显示十分钟内的可达节点，不建立或切换 VPN。端口可达不保证认证与联网成功；选中连接后才验证隧道内 HTTPS 联网并测速。UDP 配置无法用 TCP 探测，未列入搜索结果。搜索完成后由你选择连接，不定时切换。\n\n仅显示地区代码不属于 CN / HK / MO 的节点；国家位置未经独立验证。连接前显示 TCP 连接耗时；连接验证后显示 HTTPS 联网耗时与最多 1 MB 下载样本速度。推荐排序只代表本轮样本结果。\n\n节点可能随时离线或记录访问，请勿传输敏感资料。应用无账号、广告或分析 SDK，收藏与最长七天的离线列表保存在本机。\n\n内置 OpenVPN for Android 0.7.62，遵循 GPLv2 及其附加条款。源码和许可证随项目提供。")
             .setNeutralButton("手机 VPN 设置",(d,w)->{try{startActivity(new Intent(android.provider.Settings.ACTION_VPN_SETTINGS));}catch(ActivityNotFoundException e){startActivity(new Intent(android.provider.Settings.ACTION_SETTINGS));}}).setPositiveButton("关闭",null).show();}
     private void loadNodes(){
         if(refreshing)return;loadError=null;refreshing=true;refresh.setEnabled(false);refresh.setText("…");

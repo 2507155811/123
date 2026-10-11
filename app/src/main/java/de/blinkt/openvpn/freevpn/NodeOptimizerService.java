@@ -102,7 +102,7 @@ public final class NodeOptimizerService extends Service implements VpnStatus.Sta
                 else {message="请先连接通过验证的 VPN 节点";publish();}break;
             case SELECT:
                 String ip=intent.getStringExtra("ip");NodeHealth health=health(ip==null?"":ip);
-                if(health==null){message="节点验证已过期，请重新检测";publish();}else submit(()->{int token=generation.get();message="正在重新验证所选节点…";publish();try{check(token);stopTunnel();NodeHealth result=trial(health.node,token);verified.put(result.node.ip,result);message="已验证并连接："+result.node.displayCountry();}catch(Exception e){verified.remove(health.node.ip);safeStop();if(token==generation.get())message="连接失败："+(e.getMessage()==null?"请重试或换节点":e.getMessage());}finally{if(token==generation.get()&&!stopping)busy=false;publish();}});
+                if(health==null){message="节点验证已过期，请重新检测";publish();}else submit(()->{int token=generation.get();message="正在重新验证所选节点…";publish();try{check(token);stopTunnel();NodeHealth result=trial(health.node,token);if(result!=null){verified.put(result.node.ip,result);message="已验证并连接："+result.node.displayCountry();}else message="系统 VPN 已连接，联网验证暂未通过；连接保留，可手动测速或断开";}catch(Exception e){verified.remove(health.node.ip);safeStop();if(token==generation.get())message="连接失败："+(e.getMessage()==null?"请重试或换节点":e.getMessage());}finally{if(token==generation.get()&&!stopping)busy=false;publish();}});
                 break;
             case CANCEL:
                 if(searching){generation.incrementAndGet();if(work!=null)work.cancel(true);searching=false;busy=false;message="搜索已停止，当前 VPN 连接保留";publish();}break;
@@ -180,7 +180,7 @@ public final class NodeOptimizerService extends Service implements VpnStatus.Sta
             check(token);current=node;ProfileManager.setTemporaryProfile(this,profile);VPNLaunchHelper.startOpenVpn(profile,this,"Aero verified node trial",true);
             long end=SystemClock.elapsedRealtime()+30_000;
             synchronized(stateLock){while(!(level==ConnectionStatus.LEVEL_CONNECTED&&expected.equals(engineUuid))){check(token);if(level==ConnectionStatus.LEVEL_AUTH_FAILED)throw new IOException("认证失败");if(expected.equals(engineUuid)&&level==ConnectionStatus.LEVEL_NOTCONNECTED)throw new IOException("节点已拒绝连接或退出");if(SystemClock.elapsedRealtime()>=end)throw new IOException("隧道建立超时");stateLock.wait(300);}}
-            NodeHealth result=initialMeasure(node,token);getSharedPreferences("aero",MODE_PRIVATE).edit().putString("connected_label",node.displayCountry()+" · "+node.ip).apply();return result;
+            NodeHealth result;try{result=initialMeasure(node,token);}catch(IOException validation){check(token);if(level!=ConnectionStatus.LEVEL_CONNECTED)throw validation;result=null;}getSharedPreferences("aero",MODE_PRIVATE).edit().putString("connected_label",node.displayCountry()+" · "+node.ip).apply();return result;
         }catch(InterruptedException|IOException e){throw e;}catch(Exception e){throw new IOException("无法建立节点隧道",e);}
     }
     private NodeHealth initialMeasure(Node node,int token)throws IOException,InterruptedException {

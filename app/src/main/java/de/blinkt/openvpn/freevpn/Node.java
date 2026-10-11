@@ -11,7 +11,7 @@ public final class Node {
         this.id=id; this.ip=ip; this.country=country; this.code=code;
         this.ping=ping; this.speed=speed; this.sessions=sessions; this.score=score; this.config=config;
     }
-    public String provider(){return id.startsWith("vpnbook-")?"VPNBook":"VPN Gate";}
+    public String provider(){return id.startsWith("riseup-")?"RiseupVPN":id.startsWith("vpnbook-")?"VPNBook":"VPN Gate";}
     public String flag() {
         if (code.length()!=2) return "◎";
         return new String(Character.toChars(0x1F1E6+code.charAt(0)-'A'))
