@@ -1,0 +1,1 @@
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android"><item><shape><size android:width="320dp" android:height="180dp"/><solid android:color="#0B1021"/></shape></item><item android:gravity="center" android:width="108dp" android:height="108dp" android:drawable="@drawable/ic_tv"/></layer-list>

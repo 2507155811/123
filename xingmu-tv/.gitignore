@@ -1,0 +1,8 @@
+.gradle/
+**/build/
+local.properties
+*.jks
+*.keystore
+artifacts/*.apk
+artifacts/*.tar.gz
+artifacts/*.zip

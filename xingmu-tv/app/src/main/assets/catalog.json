@@ -1,0 +1,291 @@
+{
+  "authorized": true,
+  "items": [
+    {
+      "id": "cctv1",
+      "title": "CCTV-1 · 综合",
+      "section": "domestic",
+      "category": "综合",
+      "country": "中国",
+      "url": "https://tv.cctv.com/live/cctv1/",
+      "mode": "official",
+      "source": "央视网官方播放页",
+      "license": "官方观看入口；节目权利归央视及权利方，不提供转播流"
+    },
+    {
+      "id": "cctv2",
+      "title": "CCTV-2 · 财经",
+      "section": "domestic",
+      "category": "财经",
+      "country": "中国",
+      "url": "https://tv.cctv.com/live/cctv2/",
+      "mode": "official",
+      "source": "央视网官方播放页",
+      "license": "官方观看入口；节目权利归央视及权利方，不提供转播流"
+    },
+    {
+      "id": "cctv3",
+      "title": "CCTV-3 · 综艺",
+      "section": "domestic",
+      "category": "综艺",
+      "country": "中国",
+      "url": "https://tv.cctv.com/live/cctv3/",
+      "mode": "official",
+      "source": "央视网官方播放页",
+      "license": "官方观看入口；节目权利归央视及权利方，不提供转播流"
+    },
+    {
+      "id": "cctv4",
+      "title": "CCTV-4 · 中文国际",
+      "section": "domestic",
+      "category": "中文国际",
+      "country": "中国",
+      "url": "https://tv.cctv.com/live/cctv4/",
+      "mode": "official",
+      "source": "央视网官方播放页",
+      "license": "官方观看入口；节目权利归央视及权利方，不提供转播流"
+    },
+    {
+      "id": "cctv5",
+      "title": "CCTV-5 · 体育",
+      "section": "domestic",
+      "category": "体育",
+      "country": "中国",
+      "url": "https://tv.cctv.com/live/cctv5/",
+      "mode": "official",
+      "source": "央视网官方播放页",
+      "license": "官方观看入口；节目权利归央视及权利方，不提供转播流"
+    },
+    {
+      "id": "cctv6",
+      "title": "CCTV-6 · 电影",
+      "section": "domestic",
+      "category": "电影",
+      "country": "中国",
+      "url": "https://tv.cctv.com/live/cctv6/",
+      "mode": "official",
+      "source": "央视网官方播放页",
+      "license": "官方观看入口；节目权利归央视及权利方，不提供转播流"
+    },
+    {
+      "id": "cctv7",
+      "title": "CCTV-7 · 国防军事",
+      "section": "domestic",
+      "category": "国防军事",
+      "country": "中国",
+      "url": "https://tv.cctv.com/live/cctv7/",
+      "mode": "official",
+      "source": "央视网官方播放页",
+      "license": "官方观看入口；节目权利归央视及权利方，不提供转播流"
+    },
+    {
+      "id": "cctv8",
+      "title": "CCTV-8 · 电视剧",
+      "section": "domestic",
+      "category": "电视剧",
+      "country": "中国",
+      "url": "https://tv.cctv.com/live/cctv8/",
+      "mode": "official",
+      "source": "央视网官方播放页",
+      "license": "官方观看入口；节目权利归央视及权利方，不提供转播流"
+    },
+    {
+      "id": "cctv9",
+      "title": "CCTV-9 · 纪录",
+      "section": "domestic",
+      "category": "纪录",
+      "country": "中国",
+      "url": "https://tv.cctv.com/live/cctv9/",
+      "mode": "official",
+      "source": "央视网官方播放页",
+      "license": "官方观看入口；节目权利归央视及权利方，不提供转播流"
+    },
+    {
+      "id": "cctv10",
+      "title": "CCTV-10 · 科教",
+      "section": "domestic",
+      "category": "科教",
+      "country": "中国",
+      "url": "https://tv.cctv.com/live/cctv10/",
+      "mode": "official",
+      "source": "央视网官方播放页",
+      "license": "官方观看入口；节目权利归央视及权利方，不提供转播流"
+    },
+    {
+      "id": "cctv11",
+      "title": "CCTV-11 · 戏曲",
+      "section": "domestic",
+      "category": "戏曲",
+      "country": "中国",
+      "url": "https://tv.cctv.com/live/cctv11/",
+      "mode": "official",
+      "source": "央视网官方播放页",
+      "license": "官方观看入口；节目权利归央视及权利方，不提供转播流"
+    },
+    {
+      "id": "cctv12",
+      "title": "CCTV-12 · 社会与法",
+      "section": "domestic",
+      "category": "社会与法",
+      "country": "中国",
+      "url": "https://tv.cctv.com/live/cctv12/",
+      "mode": "official",
+      "source": "央视网官方播放页",
+      "license": "官方观看入口；节目权利归央视及权利方，不提供转播流"
+    },
+    {
+      "id": "cctv13",
+      "title": "CCTV-13 · 新闻",
+      "section": "domestic",
+      "category": "新闻",
+      "country": "中国",
+      "url": "https://tv.cctv.com/live/cctv13/",
+      "mode": "official",
+      "source": "央视网官方播放页",
+      "license": "官方观看入口；节目权利归央视及权利方，不提供转播流"
+    },
+    {
+      "id": "cctv14",
+      "title": "CCTV-14 · 少儿",
+      "section": "domestic",
+      "category": "少儿",
+      "country": "中国",
+      "url": "https://tv.cctv.com/live/cctv14/",
+      "mode": "official",
+      "source": "央视网官方播放页",
+      "license": "官方观看入口；节目权利归央视及权利方，不提供转播流"
+    },
+    {
+      "id": "cctv15",
+      "title": "CCTV-15 · 音乐",
+      "section": "domestic",
+      "category": "音乐",
+      "country": "中国",
+      "url": "https://tv.cctv.com/live/cctv15/",
+      "mode": "official",
+      "source": "央视网官方播放页",
+      "license": "官方观看入口；节目权利归央视及权利方，不提供转播流"
+    },
+    {
+      "id": "cctv16",
+      "title": "CCTV-16 · 奥林匹克",
+      "section": "domestic",
+      "category": "奥林匹克",
+      "country": "中国",
+      "url": "https://tv.cctv.com/live/cctv16/",
+      "mode": "official",
+      "source": "央视网官方播放页",
+      "license": "官方观看入口；节目权利归央视及权利方，不提供转播流"
+    },
+    {
+      "id": "cctv17",
+      "title": "CCTV-17 · 农业农村",
+      "section": "domestic",
+      "category": "农业农村",
+      "country": "中国",
+      "url": "https://tv.cctv.com/live/cctv17/",
+      "mode": "official",
+      "source": "央视网官方播放页",
+      "license": "官方观看入口；节目权利归央视及权利方，不提供转播流"
+    },
+    {
+      "id": "nhk",
+      "title": "NHK WORLD-JAPAN",
+      "section": "foreign",
+      "category": "新闻与科普",
+      "country": "日本",
+      "url": "https://www3.nhk.or.jp/nhkworld/en/live/",
+      "mode": "official",
+      "source": "频道官方观看页",
+      "license": "官方观看入口；依照提供者条款，可能受地区或设备限制"
+    },
+    {
+      "id": "dw",
+      "title": "DW News",
+      "section": "foreign",
+      "category": "新闻与科普",
+      "country": "德国",
+      "url": "https://www.dw.com/en/live-tv/channel-english",
+      "mode": "official",
+      "source": "频道官方观看页",
+      "license": "官方观看入口；依照提供者条款，可能受地区或设备限制"
+    },
+    {
+      "id": "france24",
+      "title": "France 24 · English",
+      "section": "foreign",
+      "category": "新闻与科普",
+      "country": "法国",
+      "url": "https://www.france24.com/en/live",
+      "mode": "official",
+      "source": "频道官方观看页",
+      "license": "官方观看入口；依照提供者条款，可能受地区或设备限制"
+    },
+    {
+      "id": "aljazeera",
+      "title": "Al Jazeera · English",
+      "section": "foreign",
+      "category": "新闻与科普",
+      "country": "卡塔尔",
+      "url": "https://www.aljazeera.com/live",
+      "mode": "official",
+      "source": "频道官方观看页",
+      "license": "官方观看入口；依照提供者条款，可能受地区或设备限制"
+    },
+    {
+      "id": "nasa",
+      "title": "NASA+ 官方科普直播与节目",
+      "section": "foreign",
+      "category": "新闻与科普",
+      "country": "美国",
+      "url": "https://plus.nasa.gov/",
+      "mode": "official",
+      "source": "频道官方观看页",
+      "license": "官方观看入口；依照提供者条款，可能受地区或设备限制"
+    },
+    {
+      "id": "bbb",
+      "title": "Big Buck Bunny · 大雄兔",
+      "section": "films",
+      "category": "动画",
+      "country": "荷兰",
+      "url": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+      "mode": "stream",
+      "source": "Blender 开放电影 · Google 公开视频样本分发",
+      "license": "CC BY 3.0 · © Blender Foundation"
+    },
+    {
+      "id": "sintel",
+      "title": "Sintel · 辛特尔",
+      "section": "films",
+      "category": "奇幻",
+      "country": "荷兰",
+      "url": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
+      "mode": "stream",
+      "source": "Blender 开放电影 · Google 公开视频样本分发",
+      "license": "CC BY 3.0 · © Blender Foundation"
+    },
+    {
+      "id": "tos",
+      "title": "Tears of Steel · 钢铁之泪",
+      "section": "films",
+      "category": "科幻",
+      "country": "荷兰",
+      "url": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4",
+      "mode": "stream",
+      "source": "Blender 开放电影 · Google 公开视频样本分发",
+      "license": "CC BY 3.0 · © Blender Foundation"
+    },
+    {
+      "id": "ed",
+      "title": "Elephants Dream · 大象之梦",
+      "section": "films",
+      "category": "动画",
+      "country": "荷兰",
+      "url": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+      "mode": "stream",
+      "source": "Blender 开放电影 · Google 公开视频样本分发",
+      "license": "CC BY 2.5 · © Blender Foundation / Orange Open Movie Project"
+    }
+  ]
+}

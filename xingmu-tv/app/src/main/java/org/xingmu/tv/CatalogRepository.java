@@ -1,0 +1,10 @@
+package org.xingmu.tv;
+import android.content.Context;import org.json.*;import java.io.*;import java.net.*;import java.util.*;
+public final class CatalogRepository {
+ private final Context context;public CatalogRepository(Context c){context=c.getApplicationContext();}
+ public static String read(InputStream input)throws IOException{if(input==null)throw new IOException("无法打开目录");try(InputStream in=input;ByteArrayOutputStream out=new ByteArrayOutputStream()){byte[] buf=new byte[8192];int n;while((n=in.read(buf))!=-1){if(out.size()+n>1_000_000)throw new IOException("目录超过 1 MB");out.write(buf,0,n);}return out.toString("UTF-8");}}
+ public List<CatalogItem> load()throws IOException{Map<String,CatalogItem> all=new LinkedHashMap<>();for(CatalogItem i:CatalogParser.parse(read(context.getAssets().open("catalog.json"))))all.put(i.id,i);File user=new File(context.getFilesDir(),"authorized-catalog.json");if(user.exists())for(CatalogItem i:CatalogParser.parse(read(new FileInputStream(user))))all.put(i.id,i);return new ArrayList<>(all.values());}
+ public int save(String json)throws IOException{List<CatalogItem> items=CatalogParser.parse(json);File file=new File(context.getFilesDir(),"authorized-catalog.json"),temp=new File(context.getFilesDir(),"authorized-catalog.tmp");try(FileOutputStream out=new FileOutputStream(temp)){out.write(json.getBytes(java.nio.charset.StandardCharsets.UTF_8));out.getFD().sync();}if(!temp.renameTo(file))throw new IOException("目录保存失败");return items.size();}
+ public int fetch(String url)throws IOException{if(!CatalogParser.safeUrl(url))throw new IOException("请输入公开 HTTPS 授权目录地址");HttpURLConnection connection=(HttpURLConnection)new URL(url).openConnection();connection.setConnectTimeout(6000);connection.setReadTimeout(6000);connection.setInstanceFollowRedirects(false);try{if(connection.getResponseCode()!=200)throw new IOException("目录请求失败，请检查地址与网络");return save(read(connection.getInputStream()));}finally{connection.disconnect();}}
+ public void clear(){new File(context.getFilesDir(),"authorized-catalog.json").delete();}
+}
