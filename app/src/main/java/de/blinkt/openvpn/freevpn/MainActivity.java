@@ -35,7 +35,7 @@ public final class MainActivity extends Activity implements VpnStatus.StateListe
     private boolean optimizerBound;
     private String pendingOptimizerAction;
     private String pendingOptimizerIp;
-    private final Runnable optimizerObserver=()->{if(isDestroyed())return;initiating=optimizer!=null&&optimizer.isBusy();detect.setEnabled(!initiating);speedButton.setEnabled(!initiating&&tunnelEstablished&&optimizer!=null&&optimizer.current()!=null);refresh.setEnabled(!refreshing&&!initiating);healthStatus.setText(optimizer==null?"搜索显示可达节点，连接后验证联网和测速":optimizer.message());if(optimizer!=null&&optimizer.current()!=null)selected=optimizer.current();else if(selected!=null&&(optimizer==null||optimizer.health(selected.ip)==null))selected=null;connected=tunnelEstablished&&optimizer!=null&&optimizer.current()!=null&&optimizer.health(optimizer.current().ip)!=null&&optimizer.health(optimizer.current().ip).tunnelVerified;if(tunnelEstablished)status.setText(connected?"已验证联网":"系统隧道已建立 · 待联网验证");filter();updateConnection();};
+    private final Runnable optimizerObserver=()->{if(isDestroyed())return;initiating=optimizer!=null&&optimizer.isBusy();detect.setEnabled(!initiating);speedButton.setEnabled(!initiating&&tunnelEstablished&&optimizer!=null&&optimizer.current()!=null);refresh.setEnabled(!refreshing&&!initiating);healthStatus.setText(optimizer==null?"搜索显示可达节点，连接后验证联网和测速":optimizer.message());if(optimizer!=null&&optimizer.current()!=null)selected=optimizer.current();else if(selected!=null&&(optimizer==null||optimizer.health(selected.ip)==null))selected=null;connected=tunnelEstablished&&optimizer!=null&&optimizer.current()!=null;if(tunnelEstablished)status.setText(connected?"VPN 已连接":"系统隧道已建立 · 待联网验证");filter();updateConnection();};
     private final ServiceConnection optimizerConnection=new ServiceConnection(){
         public void onServiceConnected(ComponentName name,IBinder binder){optimizer=((NodeOptimizerService.LocalBinder)binder).service();optimizer.observe(optimizerObserver);}
         public void onServiceDisconnected(ComponentName name){optimizer=null;filter();}
@@ -215,10 +215,10 @@ public final class MainActivity extends Activity implements VpnStatus.StateListe
     private void disconnect(){startOptimizer(optimizer!=null&&optimizer.isSearching()?NodeOptimizerService.CANCEL:NodeOptimizerService.STOP,false);}
     @Override public void updateState(String state,String log,int resource,ConnectionStatus level,Intent intent){handler.post(()->{
         if(isDestroyed())return;
-        tunnelEstablished=level==ConnectionStatus.LEVEL_CONNECTED;connected=tunnelEstablished&&optimizer!=null&&optimizer.current()!=null&&optimizer.health(optimizer.current().ip)!=null&&optimizer.health(optimizer.current().ip).tunnelVerified;
+        tunnelEstablished=level==ConnectionStatus.LEVEL_CONNECTED;connected=tunnelEstablished&&optimizer!=null&&optimizer.current()!=null;
         active=level!=ConnectionStatus.LEVEL_NOTCONNECTED && level!=ConnectionStatus.LEVEL_AUTH_FAILED && level!=ConnectionStatus.UNKNOWN_LEVEL;
         switch(level){
-            case LEVEL_CONNECTED:status.setText(connected?"已验证联网":"系统隧道已建立 · 待联网验证");break;
+            case LEVEL_CONNECTED:status.setText(connected?"VPN 已连接":"系统隧道已建立 · 待联网验证");break;
             case LEVEL_AUTH_FAILED:initiating=false;status.setText("认证失败");toast("节点认证失败，请换一个节点");break;
             case LEVEL_NONETWORK:status.setText("等待网络…");break;
             case LEVEL_VPNPAUSED:status.setText("连接已暂停");break;

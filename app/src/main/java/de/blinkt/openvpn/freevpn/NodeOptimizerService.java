@@ -173,15 +173,26 @@ public final class NodeOptimizerService extends Service implements VpnStatus.Sta
         try{
             if(!NodeParser.safeConfig(node.config,node.ip))throw new IOException("节点配置校验失败");
             ConfigParser parser=new ConfigParser();parser.parseConfig(new StringReader(node.config));VpnProfile profile=parser.convertProfile();
-            profile.mExpectTLSCert=true;if(node.provider().equals("VPNBook")){profile.mUsername="vpnbook";profile.mPassword=ProviderPassword.read(this);if(profile.mPassword.isEmpty())throw new IOException("请先设置 VPNBook 官网共享密码");}profile.mName="Aero · "+node.displayCountry()+" · "+node.ip;profile.mConnectRetryMax="1";
+            profile.mExpectTLSCert=true;if(node.provider().equals("VPNBook")){profile.mUsername="vpnbook";profile.mPassword=ProviderPassword.read(this);if(profile.mPassword.isEmpty())throw new IOException("请先设置 VPNBook 官网共享密码");}profile.mName="Aero · "+node.displayCountry()+" · "+node.ip;profile.mConnectRetryMax="-1";profile.mConnectRetry="3";profile.mConnectRetryMaxTime="30";profile.mPersistTun=true;
             for(Connection connection:profile.mConnections)connection.mConnectTimeout=10;
             if(profile.checkProfile(this)!=de.blinkt.openvpn.R.string.no_error_found)throw new IOException("节点配置不支持当前连接内核");
             String expected=profile.getUUIDString();level=ConnectionStatus.LEVEL_START;engineUuid="";
             check(token);current=node;ProfileManager.setTemporaryProfile(this,profile);VPNLaunchHelper.startOpenVpn(profile,this,"Aero verified node trial",true);
             long end=SystemClock.elapsedRealtime()+30_000;
             synchronized(stateLock){while(!(level==ConnectionStatus.LEVEL_CONNECTED&&expected.equals(engineUuid))){check(token);if(level==ConnectionStatus.LEVEL_AUTH_FAILED)throw new IOException("认证失败");if(expected.equals(engineUuid)&&level==ConnectionStatus.LEVEL_NOTCONNECTED)throw new IOException("节点已拒绝连接或退出");if(SystemClock.elapsedRealtime()>=end)throw new IOException("隧道建立超时");stateLock.wait(300);}}
-            NodeHealth result=measure(node,token);getSharedPreferences("aero",MODE_PRIVATE).edit().putString("connected_label",node.displayCountry()+" · "+node.ip).apply();return result;
+            NodeHealth result=initialMeasure(node,token);getSharedPreferences("aero",MODE_PRIVATE).edit().putString("connected_label",node.displayCountry()+" · "+node.ip).apply();return result;
         }catch(InterruptedException|IOException e){throw e;}catch(Exception e){throw new IOException("无法建立节点隧道",e);}
+    }
+    private NodeHealth initialMeasure(Node node,int token)throws IOException,InterruptedException {
+        IOException last=new IOException("隧道联网验证失败");
+        for(int attempt=0;attempt<3;attempt++){
+            check(token);
+            long deadline=SystemClock.elapsedRealtime()+15_000;
+            synchronized(stateLock){while(level!=ConnectionStatus.LEVEL_CONNECTED){check(token);if(level==ConnectionStatus.LEVEL_AUTH_FAILED)throw new IOException("认证失败");if(SystemClock.elapsedRealtime()>=deadline)break;stateLock.wait(300);}}
+            try{return measure(node,token);}catch(IOException e){last=e;message="网络暂时不稳定，正在重试联网验证（"+(attempt+1)+"/3）…";publish();}
+            if(attempt<2){synchronized(stateLock){stateLock.wait(1500);}}
+        }
+        throw last;
     }
     private void releaseEngine(){
         engine=null;if(bound){unbindService(engineConnection);bound=false;}
