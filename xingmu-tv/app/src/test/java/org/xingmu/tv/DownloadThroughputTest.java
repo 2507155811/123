@@ -1,0 +1,9 @@
+package org.xingmu.tv;
+import org.junit.Test;import static org.junit.Assert.*;
+public class DownloadThroughputTest {
+ @Test public void rangesCoverExactlyIncludingRemainder(){long[][] ranges=RangePlan.split(10000003,4);long next=0;for(long[] range:ranges){assertEquals(next,range[0]);assertTrue(range[1]>0);next+=range[1];}assertEquals(10000003,next);assertEquals(1,RangePlan.split(1,4).length);}
+ @Test public void invalidRangeResponsesAreRejected(){assertArrayEquals(new long[]{0,0,10000000},RangePlan.responseRange("bytes 0-0/10000000"));assertNull(RangePlan.responseRange("bytes */10000000"));assertNull(RangePlan.responseRange("bytes 100-50/10000000"));assertNull(RangePlan.responseRange("bytes 0-100/100"));assertNull(RangePlan.responseRange(null));}
+ @Test public void changedFilesAndWrongOffsetsCannotBeCombined(){assertTrue(RangePlan.matchesResponse("bytes 100-199/1000",100,1000,"etag","etag"));assertFalse(RangePlan.matchesResponse("bytes 0-199/1000",100,1000,"etag","etag"));assertFalse(RangePlan.matchesResponse("bytes 100-199/1001",100,1000,"etag","etag"));assertFalse(RangePlan.matchesResponse("bytes 100-199/1000",100,1000,"old","new"));assertFalse(RangePlan.matchesResponse("bytes 100-199/1000",100,1000,"etag",null));}
+ @Test public void sampleRatesExcludeCachedBytesAndResume(){DownloadRates rates=new DownloadRates();assertEquals(0,rates.update("a",1000000,1000,true),0);assertEquals(2000000,rates.update("a",3000000,2000,true),0);assertEquals(0,rates.update("a",3000000,3000,false),0);assertEquals(0,rates.update("a",3000000,4000,true),0);assertEquals(1000000,rates.update("a",4000000,5000,true),0);assertEquals(0,rates.update("a",0,6000,true),0);}
+ @Test public void speedLabelsUseUsefulUnits(){assertEquals("2.00 MB/s",DownloadRates.text(2097152));assertEquals("512 KB/s",DownloadRates.text(524288));assertEquals("0 B/s",DownloadRates.text(Double.NaN));}
+}
