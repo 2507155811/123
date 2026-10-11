@@ -1,0 +1,9 @@
+package org.xingmu.tv;
+import android.content.Context;import java.io.*;import java.nio.charset.StandardCharsets;
+/** User-specified subscription packs, loaded independently and never executing their plugins. */
+final class FilmPackRepository {
+ static final String[] NAMES={"Lightconer / 自定义","极恶论坛-饭太硬","潇洒接口","佬佬在线","王小二","嗷呜备用","小马线路","牛二接口","OK接口","金鱼","牛儿接口","Clun在线","PG接口","菜妮丝"};
+ static final String[] URLS={"","https://jijietvbox.lol/jieluntan-fty.json","https://jijietvbox.lol/xiaosha.json","http://home.jundie.top:81/top98.json","https://jijietvbox.lol/jieluntan-wxe.json","https://jijietvbox.lol/jieluntan-aowu.json","https://jijietvbox.lol/jieluntan-xiaoma.json","https://jijietvbox.lol/jieluntan-n2.json","https://raw.liucn.cc/box/m.json","https://jijietvbox.lol/jieluntan-jinyu.json","https://jijietvbox.lol/jieluntan-ner.json","https://clun.top/box.json","https://cnb.cool/fish2035/pg/-/git/raw/main/jsm.json","https://jijietvbox.lol/jieluntan-cns.json"};
+ private final Context context;FilmPackRepository(Context c){context=c.getApplicationContext();}
+ TvBoxConfig load(int index,boolean refresh)throws IOException{if(index<0||index>=URLS.length)throw new IOException("影视源包不存在");if(index==0)return new SourceRepository(context).load();File cached=new File(context.getFilesDir(),"film-pack-"+index+".json");if(cached.exists()&&!refresh)return TvBoxConfig.parse(CatalogRepository.read(new FileInputStream(cached)),URLS[index]);String text;try{text=PublicHttp.get(URLS[index]);}catch(IOException e){if(cached.exists())return TvBoxConfig.parse(CatalogRepository.read(new FileInputStream(cached)),URLS[index]);throw e;}TvBoxConfig parsed=TvBoxConfig.parse(text,URLS[index]);File temp=new File(context.getFilesDir(),"film-pack-"+index+".tmp");try(FileOutputStream out=new FileOutputStream(temp)){out.write(text.getBytes(StandardCharsets.UTF_8));out.getFD().sync();}if(!temp.renameTo(cached))throw new IOException("源包缓存保存失败");return parsed;}
+}

@@ -1,13 +1,45 @@
 # 星幕 TV
 
-独立的 Android 电视、手机和平板项目。最低 Android 5.0 / API 21，编译 API 36、目标 API 35，使用 AndroidX Media3 1.6.1，无 VPN、账户后台、广告或统计 SDK。电视首页提供国内直播、网络影视、国外直播，支持遥控器；手机和平板根据可用宽度采用一至三列，支持横竖屏。广泛兼容是实现目标，不能等同于全部型号已经实测。
+独立的 Android 电视、手机和平板项目。最低 Android 5.0 / API 21，编译 API 36、目标 API 35，使用 AndroidX Media3 1.6.1。2.0 首页选择电视模式或影视模式，兼容遥控器与触屏；不包含 VPN、账户后台、广告或统计 SDK。
+
+## 2.0 双模式重构
+
+- 首页只有电视、影视两个模式入口，使用原创图形与应用标识。影视参考常见视频应用的顶部导航、海报片库和分类交互；没有使用腾讯视频的品牌、界面素材或节目截图。
+- 电视模式直接进入原生直播，记住上次成功播放的频道。菜单打开左侧半透明双栏，左栏收藏/央视/卫视/电影/电视剧/少儿/地方/综艺/纪录/戏曲/国外/其他，右栏频道。上下键切台；菜单/确定键展开频道，抽屉打开时方向键用于菜单导航；返回先收起频道。屏幕提供频道按钮。电视隐藏点播控制条。未接入 EPG，不虚构节目名。
+- 内置 myIPTV 的目录快照，优先从用户指定镜像更新： https://gh-proxy.org/raw.githubusercontent.com/suxuang/myIPTV/main/ipv4.m3u ，失败回退 GitHub raw。
+- 内置 zbds 两个订阅地址： https://live.zbds.top/tv/iptv4.m3u 、 https://live.zbds.top/tv/iptv4.txt 。优先 M3U、失败回退 TXT；两种格式采用相同的频道 ID，合并同名同组频道的备用地址。zbds 在设备首次进入电视模式时下载，失败保留已有目录。没有声称 APK 已包含未能下载的 zbds 内容。
+- 两个直播订阅进入电视模式时后台更新，成功更新后六小时内不重复下载；设置提供手动刷新。频道菜单再次打开时读取新目录。
+- 影视提供精选、电影、电视剧、动漫、综艺、纪录片、戏曲、其他导航，地区与年份筛选、分页、搜索、源包与包内站点选择。地区/年份仅筛选当前已返回页，不代表后端全库筛选。分类浏览使用源提供的 type_id；缺少标准分类目录会显示读取失败。
+- 海报来自源响应 vod_pic，后台限并发、限下载大小、缩图与 8 MB 内存缓存；失败保留原创占位图。详情显示来源、分类、年份、地区、演员与简介（字段存在时），提供线路选择、集数网格和继续观看。
+- 13 个用户提供的影视源包名称/地址已内置到选择菜单，按需在设备下载并独立缓存。兼容标准 JSON/XML MacCMS 接口；源包中的 Spider/JAR/JS/Python 插件与会员解析仍没有运行内核，不能把订阅地址已收录等同于全部站点可播。
+- 设置支持一次粘贴最多 30 个影视接口或 TVBox 配置地址。多次导入累积并去重，顶部可选择。自定义目录、收藏、历史与开机/默认桌面设置保留。
+- 当前云环境对这些新域名的直接下载返回代理 403；网络来源将在安装设备上请求，未验证这些来源的在线率、速度或所有频道播放。
+
+### 用户指定影视源包
+
+| 名称 | 地址 |
+| --- | --- |
+| 极恶论坛-饭太硬 | https://jijietvbox.lol/jieluntan-fty.json |
+| 潇洒接口 | https://jijietvbox.lol/xiaosha.json |
+| 佬佬在线 | http://home.jundie.top:81/top98.json |
+| 王小二 | https://jijietvbox.lol/jieluntan-wxe.json |
+| 嗷呜备用 | https://jijietvbox.lol/jieluntan-aowu.json |
+| 小马线路 | https://jijietvbox.lol/jieluntan-xiaoma.json |
+| 牛二接口 | https://jijietvbox.lol/jieluntan-n2.json |
+| OK接口 | https://raw.liucn.cc/box/m.json |
+| 金鱼 | https://jijietvbox.lol/jieluntan-jinyu.json |
+| 牛儿接口 | https://jijietvbox.lol/jieluntan-ner.json |
+| Clun在线 | https://clun.top/box.json |
+| PG接口 | https://cnb.cool/fish2035/pg/-/git/raw/main/jsm.json |
+| 菜妮丝 | https://jijietvbox.lol/jieluntan-cns.json |
+
 
 ## 内容与播放能力
 
 - 内置 17 个央视官方观看入口、5 个国际频道官方观看入口，国外内容按国家分类。它们是官方网页，不是声称已验证可用的原生直播流；页面可能需要点击播放、登录或官方应用，也可能不支持电视 WebView。设备没有 WebView 时会解释原因。
 - 内置 4 部 Blender 开放电影，分类动画、奇幻、科幻，按 Creative Commons 授权播放并显示署名。Google 公共视频样本作为 MP4 分发来源；归属与许可保存在目录内。影片项目：https://www.blender.org/about/projects/ 、https://studio.blender.org/films/ 。各作品的音乐等单独素材可能有额外条款，本应用仅播放成片，不再分发独立素材。
 - Media3 原生播放器支持公开 HTTPS MP4、HLS、DASH，保存点播进度，直播错误最多退避重试三次。左右键（控制条隐藏时）、频道键、媒体上一项/下一项切换当前分类的内容；屏幕按钮同样可操作。官方网页由 WebView 按提供者权限与规则观看，未破解 DRM 或会员授权。
-- 不接入盗版 VIP 聚合、未经授权转播或付费解析接口。“开源播放器”不意味着其接入的节目获得授权。没有内置 VPN也不意味着所有国际来源都能跨地区直连；地区、设备及网络限制仍然有效。
+- 导入与内置配置只决定如何找到接口，不独立证明内容版权、在线状态或地区可用性。当前不执行会员解析、DRM 绕过与 TVBox 插件。
 
 ## 开机进入与默认桌面
 

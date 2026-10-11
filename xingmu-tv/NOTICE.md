@@ -7,3 +7,5 @@ Video content is not included in this APK. Built-in URLs reference publicly host
 1.3 内置频道目录来自用户指定公开仓库 https://github.com/suxuang/myIPTV 的 ipv4.m3u（快照 c70ac1dc42aad924c44afdf6476a4b2d4b1d980d），保留来源标识并过滤不支持的地址。本应用自身代码许可不覆盖第三方目录及媒体内容；来源的说明见其 README。CinemaArt 图形为本项目独立绘制，没有使用参考项目图标或影视海报。
 
 Lightconer 配置数据： https://github.com/Lightconer/tvbox-ysc-config ，快照 f8ed2bbd97b8e47efb6a35ca71f29c351a43a7ae。仅内置可识别的数据接口，不加载上游可执行插件。
+
+2.0 采用原创首页插图与标识；海报、简介和演员等展示字段由用户选择的影视接口返回。新增源包地址及 zbds 订阅由用户指定，订阅内容不是本项目原创作品。腾讯视频仅作为导航布局参考，TVBox 仅作为源选择/分类/详情选集的交互参考，未复制其商标或界面素材。
