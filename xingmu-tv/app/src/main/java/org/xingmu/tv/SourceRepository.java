@@ -1,0 +1,10 @@
+package org.xingmu.tv;
+import android.content.Context;import java.io.*;import java.nio.charset.StandardCharsets;import java.util.*;import org.json.*;
+final class SourceRepository {
+ private final Context context;SourceRepository(Context c){context=c.getApplicationContext();}
+ private File file(){return new File(context.getFilesDir(),"tvbox-data.json");}
+ TvBoxConfig load()throws IOException{if(!file().exists())return new TvBoxConfig();return TvBoxConfig.parse(CatalogRepository.read(new FileInputStream(file())),null);}
+ int save(String text,String base)throws IOException{TvBoxConfig config=TvBoxConfig.parse(text,base);try{JSONObject data=new JSONObject();JSONArray sites=new JSONArray(),lives=new JSONArray();for(TvBoxConfig.Site s:config.sites)sites.put(new JSONObject().put("key",s.key).put("name",s.name).put("type",1).put("api",s.api));for(String url:config.liveUrls)lives.put(new JSONObject().put("url",url));data.put("sites",sites).put("lives",lives);File temp=new File(context.getFilesDir(),"tvbox-data.tmp");try(FileOutputStream out=new FileOutputStream(temp)){out.write(data.toString().getBytes(StandardCharsets.UTF_8));out.getFD().sync();}if(!temp.renameTo(file()))throw new IOException("配置保存失败");if(!config.inline.isEmpty()){JSONArray items=new JSONArray();for(JSONObject item:config.inline)items.put(item);new CatalogRepository(context).merge(new JSONObject().put("authorized",true).put("items",items).toString(),"domestic","未分类");}String result="标准影视 API "+config.sites.size()+" 个，直播列表 "+config.liveUrls.size()+" 个，直接频道 "+config.inline.size()+" 个；插件站点 "+config.unsupported+" 个未加载";if(!config.issues.isEmpty())result+="，另有 "+config.issues.size()+" 项地址不支持";context.getSharedPreferences("sources",0).edit().putString("report",result).apply();return config.sites.size()+config.liveUrls.size()+config.inline.size();}catch(JSONException e){throw new IOException("配置保存失败",e);}}
+ String report(){return context.getSharedPreferences("sources",0).getString("report","尚未导入 TVBox 配置");}
+ void clear(){file().delete();context.getSharedPreferences("sources",0).edit().remove("report").apply();}
+}
