@@ -19,6 +19,6 @@ public final class MainActivity extends Activity {
   root.addView(categories);TvUi.gap(this,root,22);LinearLayout recentHeader=TvUi.row(this);recentHeader.addView(TvUi.title(this,"你的观影空间",18),new LinearLayout.LayoutParams(0,-2,1));root.addView(recentHeader);TvUi.gap(this,root,10);recent=TvUi.row(this);root.addView(recent);Button history=TvUi.button(this,"◷  最近观看"),favourites=TvUi.button(this,"☆  我的收藏");recent.addView(history,new LinearLayout.LayoutParams(0,-2,1));LinearLayout.LayoutParams fp=new LinearLayout.LayoutParams(0,-2,1);fp.leftMargin=TvUi.dp(this,12);recent.addView(favourites,fp);history.setOnClickListener(v->open("history"));favourites.setOnClickListener(v->open("favourites"));if(first!=null)first.requestFocus();
  }
  @Override protected void onDestroy(){loader.shutdownNow();super.onDestroy();}
- private void open(String section){startActivity(new Intent(this,LibraryActivity.class).putExtra("section",section));}
+ private void open(String section){startActivity(section.equals("films")?new Intent(this,FilmSearchActivity.class):new Intent(this,LibraryActivity.class).putExtra("section",section));}
 
 }
