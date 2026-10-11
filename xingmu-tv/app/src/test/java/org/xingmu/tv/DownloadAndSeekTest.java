@@ -1,6 +1,10 @@
 package org.xingmu.tv;
 import org.junit.Test;import static org.junit.Assert.*;
 public class DownloadAndSeekTest {
+ @Test public void downloadRejectsHtmlAndEmptyResponses()throws Exception{for(String content:new String[]{"", "<!DOCTYPE html><html>失效</html>", "{\"error\":\"expired\"}", "#EXTM3U\n#EXT-X-ENDLIST"}){try{MediaFormat.validateDownload("",content);fail("Rejected content expected");}catch(java.io.IOException expected){}}}
+ @Test public void downloadAcceptsManifestAndBinaryVideo()throws Exception{MediaFormat.validateDownload("application/vnd.apple.mpegurl","#EXTM3U\n#EXTINF:4,\npart.ts\n#EXT-X-ENDLIST");MediaFormat.validateDownload("video/mp4","0000ftypisom");assertEquals("application/x-mpegURL",MediaFormat.infer("video/mp4","#EXTM3U\n#EXTINF:4,\na.ts"));}
+ @Test public void oldDownloadMetadataNeedsRevalidation(){assertFalse(OfflineMetadata.validated("{}".getBytes(java.nio.charset.StandardCharsets.UTF_8)));}
+
  @Test public void genreSearchUsesTypeMetadataAndAliases(){assertTrue(GenreSearch.matches("动作片","动作"));assertTrue(GenreSearch.matches("言情 恋爱","爱情"));assertTrue(GenreSearch.matches("科幻 悬疑","科幻 悬疑"));assertFalse(GenreSearch.matches("剧情","科幻"));}
  @Test public void filmTagsAreReadSeparatelyFromTitles()throws Exception{VodApi.Movie movie=VodApi.parse("{\"list\":[{\"vod_name\":\"某影片\",\"type_name\":\"剧情片\",\"vod_class\":\"动作,悬疑\"}]}").get(0);assertEquals("动作,悬疑",movie.tags);assertTrue(GenreSearch.matches(movie.tags,"悬疑"));}
  @Test public void downloadLabelsPreserveTitleAndHeaders()throws Exception{CatalogItem item=new CatalogItem("episode","影片 · 第2集","films","国产剧","中国","https://example.org/episode.m3u8","stream","来源","署名",false,java.util.Collections.singletonList("https://example.org/episode.m3u8"),"custom-agent");CatalogItem result=OfflineMetadata.decode(item.id,item.url,OfflineMetadata.encode(item));assertEquals(item.id,result.id);assertEquals(item.title,result.title);assertEquals(item.userAgent,result.userAgent);assertEquals(item.license,result.license);assertFalse(result.live());}

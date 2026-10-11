@@ -1,0 +1,10 @@
+package org.xingmu.tv;
+import org.junit.Test;import static org.junit.Assert.*;import java.net.*;import java.io.*;import java.nio.charset.StandardCharsets;import androidx.media3.exoplayer.offline.Downloader;
+public class DownloadResponseTest {
+ @Test public void mp4SuffixCannotHideAnErrorPage()throws Exception{try{MediaFormat.resolveDownload("https://example.org/a.mp4","agent",url->response(url,200,"text/html","<html>expired</html>",null));fail();}catch(IOException e){assertTrue(e.getMessage().contains("不是视频"));}}
+ @Test public void plainTextErrorsAreNotVideos()throws Exception{try{MediaFormat.validateDownload("text/plain","video expired");fail();}catch(IOException expected){}}
+ @Test public void redirectsAreResolvedAndManifestContentWinsOverExtension()throws Exception{MediaFormat.Resolved media=MediaFormat.resolveDownload("https://example.org/a.mp4","agent",url->url.endsWith(".mp4")?response(url,302,"","","/signed?id=1"):response(url,200,"application/octet-stream","#EXTM3U\n#EXTINF:4,\npart.ts\n#EXT-X-ENDLIST",null));assertEquals("https://example.org/signed?id=1",media.url);assertEquals("application/x-mpegURL",media.mime);}
+ @Test public void emptyDownloadsCannotFinishSuccessfully()throws Exception{try{new VerifiedDownloader(downloader(0)).download(null);fail();}catch(IOException expected){assertTrue(expected.getMessage().contains("没有下载"));}new VerifiedDownloader(downloader(2048)).download(null);}
+ private static Downloader downloader(long bytes){return new Downloader(){public void download(ProgressListener listener){listener.onProgress(bytes,bytes,100);}public void cancel(){}public void remove(){}};}
+ private static HttpURLConnection response(String url,int code,String type,String body,String location)throws IOException{return new HttpURLConnection(new URL(url)){public int getResponseCode(){return code;}public String getContentType(){return type;}public String getHeaderField(String name){return name.equals("Location")?location:null;}public InputStream getInputStream(){return new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8));}public void disconnect(){}public boolean usingProxy(){return false;}public void connect(){}};}
+}
